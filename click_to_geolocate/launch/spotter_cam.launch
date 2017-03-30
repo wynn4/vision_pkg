@@ -1,0 +1,39 @@
+<launch>
+
+  <!--
+  This launch file runs the stamper, geolocator, and averaging script
+  for the spotter camera. It currently uses the usb_cam package to get the
+  input video. The transform is provided by the static transform publisher.
+  That will be replaced by what comes from the autopilot.
+   -->
+
+   <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
+     <param name="video_device" value="/dev/video0" />
+     <param name="image_width" value="640" />
+     <param name="image_height" value="480" />
+     <param name="pixel_format" value="yuyv" />
+     <param name="framerate" value="15" />
+     <param name="camera_frame_id" value="usb_cam" />
+     <param name="io_method" value="mmap"/>
+   </node>
+   
+  <node pkg="tf" type="static_transform_publisher" name="test_broadcaster"
+    args="100 40 -100 0 0 0 1 base MAV 100" />
+
+  <node name ="spotter_stamper" pkg="image_stamper" type="image_stamper.py"
+    respawn="true">
+    <param name="spotter_image" type="string" value="/usb_cam/image_raw"/>
+    <param name="spotter_stamp" type="string" value="/image_stamped"/>
+    <param name="base_frame" type="string" value="/base"/>
+    <param name="UAS_frame" type="string" value="/MAV"/>
+  </node>
+
+  <node name="locate_spotter" pkg="click_to_geolocate" type="pixel_publisher.py"
+    respawn="true">
+  </node>
+
+  <node name="average_spotter" pkg="click_to_geolocate" type="listener.py"
+    respawn="true">
+  </node>
+
+</launch>
