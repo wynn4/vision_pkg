@@ -175,7 +175,7 @@ class listen_and_locate:
     '''
     def state_cb(self,data):
         states_image = [data.position[0],data.position[1],data.position[2],data.phi,data.theta,data.psi]
-        gimbal_pos = [-45.0*np.pi/180.0,0.0*np.pi/180.0]
+        gimbal_pos = [0.0*np.pi/180.0,-45.0*np.pi/180.0]
 
         self.camera.setStatesandAngles(states_image,gimbal_pos)
 
