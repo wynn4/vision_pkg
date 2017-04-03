@@ -17,6 +17,8 @@
 
 import rospy
 from sensor_msgs.msg import CompressedImage
+from fcu_common.msg import State
+from std_msgs.msg import Float64
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import math
@@ -34,6 +36,8 @@ class SniperGeoLocator(object):
 
     def __init__(self):
         self.stamped_image_subscriber = rospy.Subscriber('sniper_cam/image/compressed', CompressedImage, self.image_callback, queue_size=1)
+        self.state_sub = rospy.Subscriber('/state', State, self.state_cb)
+        self.gimbal_sub = rospy.Subscriber('/gimbal_angle',Float64,self.gimbal_cb)
 
         # setup mouse click callback
         cv2.namedWindow('sniper cam image')
@@ -72,19 +76,41 @@ class SniperGeoLocator(object):
 
         self.txt_directory = "/home/jesse/Desktop/vision_files/target_locations/"
 
+    def state_cb(self, data):
+        self.pn = data.position[0]
+        self.pe = data.position[1]
+        self.pd = data.position[2]
+
+        self.phi = data.phi
+        self.theta = data.theta
+        self.psi = data.psi
+
+    def gimbal_cb(self,data):
+        self.alpha_az = 90.0
+
+        # I don't know if things break outside of [0,90] but just in case...
+        # also, assumes gimbal elevation comes in in degrees
+        if data > 0.0:
+            self.alpha_el = 0.0
+        elif data < math.radians(-90.0):
+            self.alpha_el = math.radians(-90.0)
+        else:
+            self.alpha_el = math.radians(data)
+
+
 
     def image_callback(self, msg):
         # pull off the state info from the message
-        self.pn = 0.0
-        self.pe = 0.0
-        self.pd = -100.0
-
-        self.phi = math.radians(22.5)   #22.5
-        self.theta = math.radians(0.0)
-        self.psi = math.radians(0.0)
-
-        self.alpha_az = math.radians(90.0)    #90
-        self.alpha_el = math.radians(-22.5) #-22.5
+        # self.pn = 0.0
+        # self.pe = 0.0
+        # self.pd = -100.0
+        #
+        # self.phi = math.radians(22.5)   #22.5
+        # self.theta = math.radians(0.0)
+        # self.psi = math.radians(0.0)
+        #
+        # self.alpha_az = math.radians(90.0)    #90
+        # self.alpha_el = math.radians(-22.5) #-22.5
 
         # direct conversion to CV2 of the image portion of the message
         np_arr = np.fromstring(msg.data, np.uint8)
