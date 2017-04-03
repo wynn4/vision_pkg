@@ -15,7 +15,7 @@ import tf
 from cv_bridge import CvBridge, CvBridgeError
 from std_msgs.msg import String
 from click_to_geolocate.msg import FloatList
-from uav_msgs.msg import stampedImage
+from fcu_common.msg import State
 
 '''
 class to perform calculations on camera image
@@ -138,7 +138,8 @@ ROS class for managing data
 class listen_and_locate:
 
     def __init__(self,gimbal_pos,v):
-        self.image_sub = rospy.Subscriber('/image_stamped',stampedImage,self.image_cb)
+        # self.image_sub = rospy.Subscriber('/image_stamped',stampedImage,self.image_cb)
+        self.state_sub = rospy.Subscriber('/state',State,self.state_cb)
         self.pub = rospy.Publisher('spotter_data', FloatList, queue_size=10)
         self.bridge = CvBridge()
         self.camera = camClick(gimbal_pos,v)
@@ -167,7 +168,20 @@ class listen_and_locate:
 
         self.distCoeff = np.array([self.k1, self.k2, self.p1, self.p2, self.k3], dtype = np.float64)
 
-    def image_cb(self, data):
+        self.image()
+
+    '''
+    receives the states and updates what the camera has
+    '''
+    def state_cb(self,data):
+        states_image = [data.position[0],data.position[1],data.position[2],data.phi,data.theta,data.psi]
+        gimbal_pos = [-45.0*np.pi/180.0,0.0*np.pi/180.0]
+
+        self.camera.setStatesandAngles(states_image,gimbal_pos)
+
+    def image(self):
+
+        '''
         try:
             self.cv_image = self.bridge.imgmsg_to_cv2(data.image, "bgr8")
         except CvBridgeError as e:
@@ -177,15 +191,27 @@ class listen_and_locate:
         states_image = [data.pn,data.pe,data.pd,data.phi,data.theta,data.psi]
 
         self.camera.setStatesandAngles(states_image,gimbal_pos)
+        '''
+
+        rate = rospy.Rate(30)
 
         #creates a named window for our camera, waits for mouse click
         cv2.namedWindow('spotter_cam')
         cv2.setMouseCallback('spotter_cam', self.click_and_pub_pixel_data)
-        cv2.rectangle(self.cv_image, (80,80), (560,400), (0,0,255), 2)
-        cv2.putText(self.cv_image,"Target: " + str(int(self.target_counter)),(5,20),cv2.FONT_HERSHEY_PLAIN,1,(0,0,255))
-        cv2.imshow('spotter_cam',self.cv_image)
+        cap = cv2.VideoCapture(0)
 
-        cv2.waitKey(1)
+        while not rospy.is_shutdown():
+            ret, self.frame = cap.read()
+
+            cv2.rectangle(self.frame, (80,80), (560,400), (0,0,255), 2)
+            cv2.putText(self.frame,"Target: " + str(int(self.target_counter)),(5,20),cv2.FONT_HERSHEY_PLAIN,1,(0,0,255))
+            cv2.imshow('spotter_cam',self.frame)
+
+            cv2.waitKey(1)
+            rate.sleep()
+
+        cap.release()
+        cv2.destroyAllWindows()
 
     '''
     mouse click callback. if left mouse button, uses self.camera to publish
@@ -223,7 +249,7 @@ class listen_and_locate:
                                         +np.sin(phi)*np.sin(psi),np.cos(phi)*np.sin(theta)*np.sin(psi) \
                                         -np.sin(phi)*np.cos(psi), np.cos(phi)*np.cos(theta)]]).T
 
-                size = self.cv_image.shape
+                size = self.frame.shape
                 image_size = [size[0],size[1]]
 
                 refPt = self.camera.getNED(self.pixPt,image_size,R_b_i)
