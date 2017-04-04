@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 import os
 import sys
 from Tkinter import *
@@ -99,4 +101,3 @@ root = Tk()
 app = Application(master=root)
 app.mainloop()
 root.destroy()
-
