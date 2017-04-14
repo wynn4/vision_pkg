@@ -116,8 +116,6 @@ class SniperGeoLocator(object):
         np_arr = np.fromstring(msg.data, np.uint8)
         img_np = cv2.imdecode(np_arr, 1)
         self.img_current = cv2.imdecode(np_arr, 1)
-        # make a copy of img_np for saving and accessing elsewhere in the class
-        #self.img_current = img_np
 
         # get the width and height of the image
         height, width, channels = img_np.shape
