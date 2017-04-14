@@ -23,7 +23,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import math
 import numpy as np
-
+import os
 import time
 from time import strftime, localtime
 from datetime import datetime
@@ -72,9 +72,9 @@ class SniperGeoLocator(object):
         self.img_current = np.zeros(shape, np.uint8)
 
         # set vision_files directory
-        self.image_directory = "/home/jesse/Desktop/vision_files/target_images/"
+        self.image_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_images/"
 
-        self.txt_directory = "/home/jesse/Desktop/vision_files/target_locations/"
+        self.txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_locations/"
 
     def state_cb(self, data):
         self.pn = data.position[0]
