@@ -21,7 +21,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 # extend the tkinter class Frame to adapt to our current application
 class Application(Frame):
-    
+
     def submitInfo(self):
         if self.imageType == 'Rotated':
             self.imageMessage = self.rotateImage
@@ -29,29 +29,30 @@ class Application(Frame):
             self.imageMessage = self.croppedImage
         else:
             self.imageMessage = self.image
-        
+
         try:
             image_msg = self.bridge.cv2_to_imgmsg(np.array(self.imageMessage), "rgb8")
         except CvBridgeError as e:
             print(e)
-      
+
         file = 'characteristics_target_{}.txt'.format(self.targetDir[-1])
         writeFile = open(file, 'wb')
         orientation = self.vals[2] - self.rotateValue.get()
-        if(orientation < 0):
+        while(orientation < 0):
             orientation += 360
-        
-        #add target type self.typeContent.get()
+
         self.msg.image = image_msg
+        self.msg.type = self.typeContent.get()
         self.msg.gps_lati = float(self.vals[0])
         self.msg.gps_longit = float(self.vals[1])
         self.msg.target_color = self.tColorContent.get()
         self.msg.target_shape = self.tShapeContent.get()
         self.msg.symbol = self.letterContent.get()
         self.msg.symbol_color = self.lColorContent.get()
-        self.msg.orientation = str(orientation)
+        self.msg.orientation = int(orientation)
+        self.msg.description = self.descriptionContent.get()
         self.pub.publish(self.msg)
-        
+
         '''
         writeFile.write('{}\n,{}\n,{}\n,{}\n,{}\n,{}\n,{}\n,{}'.format(self.typeContent.get(), self.vals[0], self.vals[1],
                                                                 orientation, self.tShapeContent.get(), self.letterContent.get(),
@@ -169,7 +170,7 @@ class Application(Frame):
         self.refValue = 0
         self.rotateLabel = Label(self, text="Counter Clockwise >>")
         self.rotateLabel.grid(row=2, column=4, columnspan=2)
-        self.rotateScale = Scale(self, from_=0, to=360, orient=HORIZONTAL, width=10, length=150, 
+        self.rotateScale = Scale(self, from_=0, to=360, orient=HORIZONTAL, width=10, length=150,
                             sliderlength=15, variable=self.rotateValue, state=DISABLED)
         self.rotateScale.grid(row=3, column=4, columnspan=2)
 
@@ -192,7 +193,7 @@ class Application(Frame):
 
         self.tShapeContent = StringVar()
         self.tShapeContent.set("circle")
-        self.targetShape = OptionMenu(self, self.tShapeContent, "circle", "semicircle", "quarter_circle", "triangle", "square", "rectangle", "trapezoid", 
+        self.targetShape = OptionMenu(self, self.tShapeContent, "circle", "semicircle", "quarter_circle", "triangle", "square", "rectangle", "trapezoid",
                             "pentagon", "hexagon", "heptagon", "octagon", "star", "cross" )
         self.targetShape.grid(row=4,column=1)
 
@@ -227,7 +228,7 @@ class Application(Frame):
 
         self.targetButton = Button(self, width=18, height=1, text="BROWSE", command=self.browseDirectory)
         self.targetButton.grid(row=2, column=3)
-    
+
         Label(self, text=" ").grid(row=5, column=1)
         self.descriptionLabel = Label(self, text="Emergent Description:")
         self.descriptionLabel.grid(row=6, column=1)
@@ -235,7 +236,7 @@ class Application(Frame):
         self.descriptionContent = StringVar()
         self.descriptionField = Entry(self, textvariable=self.descriptionContent, state=DISABLED)
         self.descriptionField.grid(row=6, column=2)
-       
+
 
     def loadImage(self, event):
         if self.red_rect:
@@ -266,7 +267,7 @@ class Application(Frame):
         self.canvas.bind("<ButtonPress-3>", self.right_click)
         self.canvas.bind("<B1-Motion>", self.on_move_press)
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
-        self.image = Im.open(filename)            
+        self.image = Im.open(filename)
         self.originalImage = self.image
         width, height = self.image.size
         self.w_mult = float(width) / 450
@@ -447,13 +448,13 @@ class Application(Frame):
         self.croppedImage = None
         self.rotateJob = None
         self.imageType = ''
-        
+
         self.pub = rospy.Publisher('plans', interopImages, queue_size =  10)
         self.bridge = CvBridge()
         self.msg = interopImages()
 
         rospy.init_node('death_star', anonymous=True)
-        
+
         # create the frame
         Frame.__init__(self, master)
         # pack it up

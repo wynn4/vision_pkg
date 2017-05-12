@@ -1,9 +1,10 @@
 sensor_msgs/Image image
-
+string type
 float32 gps_lati
 float32 gps_longit
 string target_color
 string target_shape
-string symbol
+string symuint32
 string symbol_color
-string orientation
+uint32 orientation
+string description
