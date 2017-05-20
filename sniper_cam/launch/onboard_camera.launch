@@ -5,6 +5,8 @@
 
  <node name="pointgrey_camera" pkg="pointgrey_camera_driver" type="camera_node">
 	<param name="frame_rate" value="$(arg frame_rate)" />
+  <param name="auto_shutter" value="false" />
+  <param name="shutter_speed" value="0.01" />
  </node>
 
  <node name="state_image_stamper" pkg="sniper_cam" type="image_stamper.py">
