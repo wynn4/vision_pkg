@@ -1,0 +1,15 @@
+<launch>
+
+ <!-- set the onboard camera frame rate -->
+ <arg name="frame_rate" value="15" />
+
+ <node name="pointgrey_camera" pkg="pointgrey_camera_driver" type="camera_node">
+	<param name="frame_rate" value="$(arg frame_rate)" />
+ </node>
+
+ <node name="state_image_stamper" pkg="sniper_cam" type="image_stamper.py">
+	<param name="frame_rate_in" value="$(arg frame_rate)" />
+ </node>
+
+
+</launch>
