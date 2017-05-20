@@ -1,14 +1,14 @@
 #! /usr/bin/env python
 
 ## Simple ROS node that:
-## -subscribes to stamped_image topic   -needs to be done as of (3/20/17)
+## -subscribes to state_image topic
 ## -displays the image portion of the message
 ## -if user clicks target in image:
 ##  -capture x,y pixel coord
 ##  -calculate target NED location
-##  -wirte image to sorted file *1
-##  -write NED location and heading to file *2
-## -right click in image window increments target number changes the target number
+##  -wirte image to target-sorted file
+##  -write NED location and heading to target-sorted file
+## -right click in image window increments target number
 ## -middle click decrements target number
 
 ## Geolocation Method Based on Chapter 13 of Small Unmanned Aircraft Theory and Practice by R. Beard and T. McLain
@@ -17,6 +17,7 @@
 
 import rospy
 from sensor_msgs.msg import CompressedImage
+from sniper_cam.msg import stateImage
 from fcu_common.msg import State
 from std_msgs.msg import Float64
 from cv_bridge import CvBridge, CvBridgeError
@@ -32,12 +33,12 @@ from datetime import datetime
 
 
 class SniperGeoLocator(object):
-    # Simple class that takes care of geolocation of ground targets based on Small Unmanned Aircraft Theory and Practice Chapter 13
+    # class that takes care of geolocation of ground targets based on Small Unmanned Aircraft Theory and Practice Chapter 13
+    # assumes 'flat_earth'
 
     def __init__(self):
-        self.stamped_image_subscriber = rospy.Subscriber('sniper_cam/image/compressed', CompressedImage, self.image_callback, queue_size=1)
-        self.state_sub = rospy.Subscriber('/state', State, self.state_cb)
-        self.gimbal_sub = rospy.Subscriber('/gimbal_angle',Float64,self.gimbal_cb)
+        # setup state_image subscriber
+        self.state_image_subscriber = rospy.Subscriber('state_image', stateImage, self.state_image_callback, queue_size=1)
 
         # setup mouse click callback
         cv2.namedWindow('sniper cam image')
@@ -50,7 +51,7 @@ class SniperGeoLocator(object):
 
         self.phi = 0.0
         self.theta = 0.0
-        self.psi = 0.0
+        self.chi = 0.0
 
         self.alpha_az = 0.0
         self.alpha_el = 0.0
@@ -68,7 +69,7 @@ class SniperGeoLocator(object):
         self.time_str = "_"
 
         # initialize current image
-        shape = 576, 1024, 3
+        shape = 964, 1288, 3
         self.img_current = np.zeros(shape, np.uint8)
 
         # set vision_files directory
@@ -76,44 +77,22 @@ class SniperGeoLocator(object):
 
         self.txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_locations/"
 
-    def state_cb(self, data):
-        self.pn = data.position[0]
-        self.pe = data.position[1]
-        self.pd = data.position[2]
 
-        self.phi = data.phi
-        self.theta = data.theta
-        self.psi = data.psi
-
-    def gimbal_cb(self,data):
-        self.alpha_az = 90.0
-
-        # I don't know if things break outside of [0,90] but just in case...
-        # also, assumes gimbal elevation comes in in degrees
-        if data > 0.0:
-            self.alpha_el = 0.0
-        elif data < math.radians(-90.0):
-            self.alpha_el = math.radians(-90.0)
-        else:
-            self.alpha_el = math.radians(data)
-
-
-
-    def image_callback(self, msg):
+    def state_image_callback(self, msg):
         # pull off the state info from the message
-        # self.pn = 0.0
-        # self.pe = 0.0
-        # self.pd = -100.0
-        #
-        # self.phi = math.radians(22.5)   #22.5
-        # self.theta = math.radians(0.0)
-        # self.psi = math.radians(0.0)
-        #
-        # self.alpha_az = math.radians(90.0)    #90
-        # self.alpha_el = math.radians(-22.5) #-22.5
+        self.pn = msg.pn
+        self.pe = msg.pe
+        self.pd = msg.pd
+
+        self.phi = msg.phi
+        self.theta = msg.theta
+        self.psi = msg.chi % (2*math.pi)    # here we approximate psi as chi mod 2*pi
+
+        self.alpha_az = msg.azimuth
+        self.alpha_el = msg.elevation
 
         # direct conversion to CV2 of the image portion of the message
-        np_arr = np.fromstring(msg.data, np.uint8)
+        np_arr = np.fromstring(msg.image.data, np.uint8)
         img_np = cv2.imdecode(np_arr, 1)
         self.img_current = cv2.imdecode(np_arr, 1)
 
@@ -131,7 +110,7 @@ class SniperGeoLocator(object):
         cv2.putText(img_np,self.time_str,(5,40),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
         cv2.imshow('sniper cam image', img_np)
         # wait about a second
-        cv2.waitKey(999)
+        cv2.waitKey(990)
 
 
     def click_and_locate(self, event, x, y, flags, param):
