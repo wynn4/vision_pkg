@@ -51,7 +51,7 @@ class SniperGeoLocator(object):
 
         self.phi = 0.0
         self.theta = 0.0
-        self.chi = 0.0
+        self.psi = 0.0
 
         self.alpha_az = 0.0
         self.alpha_el = 0.0

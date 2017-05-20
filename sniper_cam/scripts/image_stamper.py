@@ -32,14 +32,14 @@ class ImageStamper(object):
         # initialize state variables
         self.pn = 0.0
         self.pe = 0.0
-        self.pd = 0.0
+        self.pd = -5.0
 
         self.phi = 0.0
         self.theta = 0.0
         self.chi = 0.0
 
         self.alpha_az = math.radians(90)
-        self.alpha_el = math.radians(-20)
+        self.alpha_el = math.radians(-45)
 
         # initialize counter
         self.counter = 0
