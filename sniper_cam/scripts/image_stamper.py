@@ -1,9 +1,10 @@
 #! /usr/bin/env python
 
-## Simple ROS node that:
+## simple ROS node that:
 ## -subscribes to CompressedImage from PointGrey Camera
 ## -pairs the CompressedImage with the relevant state data
 ## -pubishes a state-stamped image at 1 hz
+## Jesse Wynn AUVSI '17
 
 
 import rospy
@@ -15,14 +16,17 @@ import math
 import numpy as np
 
 class ImageStamper(object):
-    # Simple class that takes in images and adds the current state data to them with a custom message type
+    # simple class that takes in images and adds the current state data to them with a custom message type
 
     def __init__(self):
         self.image_subscriber = rospy.Subscriber('image_raw/compressed', CompressedImage, self.image_callback, queue_size=1)
-        self.state_subscriber = rospy.Subscriber('/state', State, self.state_callback, queue_size=1)
-        self.state_image_publisher = rospy.Publisher('state_image', stateImage, queue_size=10)
+        self.state_subscriber = rospy.Subscriber('/state', State, self.state_callback, queue_size=10)
+        self.state_image_publisher = rospy.Publisher('state_image', stateImage, queue_size=1)
 
-        #create stateImage object
+        # get the incoming frame rate from the camera
+        self.frame_rate = rospy.get_param('~frame_rate_in', 15)
+
+        # create stateImage object
         self.state_image_msg = stateImage()
 
         # initialize state variables
@@ -45,12 +49,12 @@ class ImageStamper(object):
         # increment the counter
         self.counter += 1
 
-        # publish every 15th frame (assuming camera is set to 15 fps)
-        if self.counter == 15:
-            #reset counter
+        # publish at 1 Hz
+        if self.counter == self.frame_rate:
+            # reset counter
             self.counter = 0
 
-            #fill out the stateImage message
+            # fill out the stateImage message
             self.state_image_msg.pn = self.pn
             self.state_image_msg.pe = self.pe
             self.state_image_msg.pd = self.pd
@@ -61,9 +65,8 @@ class ImageStamper(object):
             self.state_image_msg.elevation = self.alpha_el
             self.state_image_msg.image = msg
 
-            #publish the message
+            # publish the message
             self.state_image_publisher.publish(self.state_image_msg)
-
         else:
             pass
 
@@ -78,19 +81,18 @@ class ImageStamper(object):
         self.chi = data.chi
 
 
-
 def main():
-    #initialize the node
+    # initialize the node
     rospy.init_node('image_stamper')
 
-    #create instance of class that subscribes to the stamped_image
+    # create instance of class ImageStamper
     subscriber = ImageStamper()
-    #spin
+    # spin
     try:
         rospy.spin()
     except KeyBoardInterrupt:
         print("Shutting down")
-    #OpenCV cleanup
+    # OpenCV cleanup
     cv2.destroyAllWindows()
 
 
