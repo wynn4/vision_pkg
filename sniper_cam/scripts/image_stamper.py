@@ -20,10 +20,10 @@ class ImageStamper(object):
 
     def __init__(self):
         self.image_subscriber = rospy.Subscriber('image_raw', Image, self.image_callback, queue_size=1)
-        self.state_subscriber = rospy.Subscriber('/state', State, self.state_callback, queue_size=10)
+        self.state_subscriber = rospy.Subscriber('/state', State, self.state_callback, queue_size=1)
         self.state_image_publisher = rospy.Publisher('state_image', stateImage, queue_size=1)
 
-        # get the incoming frame rate from the camera
+        # get the incoming frame rate
         self.frame_rate = rospy.get_param('~frame_rate_in', 15)
 
         # create stateImage object
@@ -38,6 +38,7 @@ class ImageStamper(object):
         self.theta = 0.0
         self.chi = 0.0
 
+        # static gimbal
         self.alpha_az = math.radians(90)
         self.alpha_el = math.radians(-45)
 
