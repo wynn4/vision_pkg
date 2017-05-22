@@ -7,4 +7,4 @@ float32 chi
 float32 azimuth
 float32 elevation
 
-sensor_msgs/CompressedImage image
+sensor_msgs/Image image

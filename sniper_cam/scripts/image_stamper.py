@@ -8,7 +8,7 @@
 
 
 import rospy
-from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import Image
 from fcu_common.msg import State
 from sniper_cam.msg import stateImage
 import cv2
@@ -19,7 +19,7 @@ class ImageStamper(object):
     # simple class that takes in images and adds the current state data to them with a custom message type
 
     def __init__(self):
-        self.image_subscriber = rospy.Subscriber('image_raw/compressed', CompressedImage, self.image_callback, queue_size=1)
+        self.image_subscriber = rospy.Subscriber('image_raw', Image, self.image_callback, queue_size=1)
         self.state_subscriber = rospy.Subscriber('/state', State, self.state_callback, queue_size=10)
         self.state_image_publisher = rospy.Publisher('state_image', stateImage, queue_size=1)
 

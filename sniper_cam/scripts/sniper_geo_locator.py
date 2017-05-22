@@ -77,6 +77,8 @@ class SniperGeoLocator(object):
 
         self.txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_locations/"
 
+        self.bridge = CvBridge()
+
 
     def state_image_callback(self, msg):
         # pull off the state info from the message
@@ -92,14 +94,18 @@ class SniperGeoLocator(object):
         self.alpha_el = msg.elevation
 
         # direct conversion to CV2 of the image portion of the message
-        np_arr = np.fromstring(msg.image.data, np.uint8)
-        img_np = cv2.imdecode(np_arr, 1)
-        self.img_current = cv2.imdecode(np_arr, 1)
+        #np_arr = np.fromstring(msg.image.data, dtype=np.uint8)
+        #np_arr.reshape(964, 1288, 3)
+        #print np_arr.shape
+        #img_np = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
+        #self.img_current = cv2.imdecode(np_arr, 1)
 
         # get the width and height of the image
-        height, width, channels = img_np.shape
-        self.img_width = width
-        self.img_height = height
+        #height, width, channels = img_np.shape
+        #self.img_width = width
+        #elf.img_height = height
+
+        img_np = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
 
         # get the time
         self.get_current_time()
@@ -110,7 +116,7 @@ class SniperGeoLocator(object):
         cv2.putText(img_np,self.time_str,(5,40),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
         cv2.imshow('sniper cam image', img_np)
         # wait about a second
-        cv2.waitKey(990)
+        cv2.waitKey(500)
 
 
     def click_and_locate(self, event, x, y, flags, param):
