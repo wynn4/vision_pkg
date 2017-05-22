@@ -15,6 +15,8 @@
 ## Peter Schleede AUVSI '17
 ## Jesse Wynn AUVSI '17
 
+## Note: As of 05/22/17 this node only works as designed with Ubuntu 14.04 and OpenCV version 2.4
+
 import rospy
 from sensor_msgs.msg import CompressedImage
 from sniper_cam.msg import stateImage
