@@ -32,7 +32,7 @@ class ImageStamper(object):
         # initialize state variables
         self.pn = 0.0
         self.pe = 0.0
-        self.pd = -5.0
+        self.pd = 0.0
 
         self.phi = 0.0
         self.theta = 0.0
