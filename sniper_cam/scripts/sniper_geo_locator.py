@@ -67,7 +67,7 @@ class SniperGeoLocator(object):
         self.time_str = "_"
         self.color = 0, 0, 255
 
-        # initialize current image
+        # initialize the image to save
         shape = 964, 1288, 3
         self.image_save = np.zeros(shape, np.uint8)
 
@@ -99,7 +99,7 @@ class SniperGeoLocator(object):
 
         # pull off the image portion of the message
         image_display = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
-        image_save = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
+        self.image_save = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
 
         # get the width and height of the image
         height, width, channels = image_display.shape
