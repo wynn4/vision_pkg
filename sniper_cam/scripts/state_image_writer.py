@@ -46,25 +46,24 @@ class StateImageWriter(object):
         self.alpha_az = 0.0
         self.alpha_el = 0.0
 
-        # initialize image parameters
-        self.img_width = 0.0
-        self.img_height = 0.0
-        self.fov_w = 47.2   #with PointGrey Chameleon3 and 6mm lens from M12lenses.com
-        self.fov_h = 34.0   #with PointGrey Chameleon3 and 6mm lens from M12lenses.com
+        # # initialize image parameters
+        # self.img_width = 0.0
+        # self.img_height = 0.0
+
 
         # initialize target number
-        self.target_number = 0
+        # self.target_number = 0
 
-        self.status = "Standby..."
+        #self.status = "Standby..."
         self.time_str = "_"
-        self.color = 0, 0, 255
+        self.color = 0, 255, 0
 
         # initialize the image to save
         shape = 964, 1288, 3
         self.image_save = np.zeros(shape, np.uint8)
 
         # set vision_files directory
-        self.image_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_images/"
+        self.image_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_images/all_images/"
 
         self.txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/"
 
@@ -79,7 +78,7 @@ class StateImageWriter(object):
 
         self.phi = msg.phi
         self.theta = msg.theta
-        self.psi = msg.chi % (2*math.pi)    # here we approximate psi as chi mod 2*pi
+        self.psi = msg.chi    # here we approximate psi as chi
 
         self.alpha_az = msg.azimuth
         self.alpha_el = msg.elevation
@@ -94,17 +93,16 @@ class StateImageWriter(object):
         self.image_save = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
 
         # get the width and height of the image
-        height, width, channels = image_display.shape
-        self.img_width = width
-        self.img_height = height
+        #height, width, channels = image_display.shape
+        #self.img_width = width
+        #self.img_height = height
 
         # get the time
         self.get_current_time()
 
         # display the image
         cv2.rectangle(image_display,(0,0),(310,60),(0,0,0),-1)
-        cv2.putText(image_display,"Status: ",(5,25),cv2.FONT_HERSHEY_PLAIN,2,(0,255,0))
-        cv2.putText(image_display, self.status,(140,25),cv2.FONT_HERSHEY_PLAIN,2,(self.color))
+        cv2.putText(image_display,"To save this frame, left-click on the image",(5,25),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
         cv2.putText(image_display,"Date/Time: " + self.time_str,(5,50),cv2.FONT_HERSHEY_PLAIN,1,(197,155,19))
         cv2.imshow('sniper cam image', image_display)
         # wait about half a second
@@ -123,8 +121,6 @@ class StateImageWriter(object):
             pass
 
 
-
-
     def get_current_time(self):
         dt = datetime.now()
         m_time = dt.microsecond
@@ -134,9 +130,8 @@ class StateImageWriter(object):
 
 
     def write_image_to_file(self):
-        target_folder = "target_" + str(self.target_number) + "/"
         filename = self.time_str + ".jpg"
-        cv2.imwrite(self.image_directory + target_folder + filename, self.image_save)
+        cv2.imwrite(self.image_directory + filename, self.image_save)
 
 
     def write_state_to_file(self, location):
@@ -153,7 +148,7 @@ class StateImageWriter(object):
 
 def main():
     #initialize the node
-    rospy.init_node('sniper_geo_locator')
+    rospy.init_node('state_image_writer')
 
     #create instance of class that subscribes to the stamped_image
     subscriber = StateImageWriter()
