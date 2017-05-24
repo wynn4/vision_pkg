@@ -17,6 +17,28 @@
 
 ## Note: As of 05/22/17 this node only works as designed with Ubuntu 14.04 and OpenCV version 2.4
 
+# import os
+# import glob
+# import cv2
+# 
+# #for filename in os.listdir('/home/jesse/Desktop/vision_files/target_images/target_1'):
+# #    print filename
+#
+# path = '/home/jesse/Desktop/vision_files/target_images/target_1/*.jpg'
+# #for filename in glob.glob(path):
+# #    print(filename)
+#
+#
+# file_list = glob.glob(path)
+# file_list.sort(key=os.path.getmtime)
+# for filename in file_list:
+#     image = cv2.imread(filename)
+#     cv2.imshow('image', image)
+#     cv2.waitKey(2000)
+#
+# cv2.destroyAllWindows()
+
+
 import rospy
 from sensor_msgs.msg import CompressedImage
 from sniper_cam.msg import stateImage
