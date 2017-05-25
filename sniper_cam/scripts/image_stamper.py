@@ -39,8 +39,8 @@ class ImageStamper(object):
         self.chi = 0.0
 
         # static gimbal
-        self.alpha_az = math.radians(90)
-        self.alpha_el = math.radians(-45)
+        self.alpha_az = math.radians(0)
+        self.alpha_el = math.radians(-90)
 
         # initialize counter
         self.counter = 0
