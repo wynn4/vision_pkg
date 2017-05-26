@@ -30,11 +30,6 @@ class StateImageWriter(object):
         # setup state_image subscriber
         self.state_image_subscriber = rospy.Subscriber('state_image', stateImage, self.state_image_callback, queue_size=1)
 
-        # setup mouse click callback
-        #self.opencv_window = 'sniper cam state_image writer'
-        #cv2.namedWindow(self.opencv_window)
-        #cv2.setMouseCallback(self.opencv_window, self.click_and_save)
-
         # initialize state variables
         self.pn = 0.0
         self.pe = 0.0
@@ -47,24 +42,22 @@ class StateImageWriter(object):
         self.alpha_az = 0.0
         self.alpha_el = 0.0
 
-        # # initialize image parameters
-        # self.img_width = 0.0
-        # self.img_height = 0.0
-
-        #self.status = "Standby..."
+        # initialize time_str
         self.time_str = "_"
 
         # initialize the image to save
         shape = 964, 1288, 3
         self.image_save = np.zeros(shape, np.uint8)
 
-        # set vision_files directory
+        # set vision_files directories
         self.image_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_images/all_images/"
 
         self.txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/"
 
+        # create a CvBridge object
         self.bridge = CvBridge()
 
+        # initialize counter
         self.counter = 0
 
     def state_image_callback(self, msg):
@@ -80,52 +73,29 @@ class StateImageWriter(object):
         self.alpha_az = msg.azimuth
         self.alpha_el = msg.elevation
 
-        # direct conversion to CV2 of the image portion of the message
-        #np_arr = np.fromstring(msg.image.data, dtype=np.uint8)
-        #image_display = cv2.imdecode(np_arr, 1)
-        #self.image_save = cv2.imdecode(np_arr, 1)
-
         # pull off the image portion of the message
-        #image_display = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
+        # image_display = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
         self.image_save = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
 
-        # # get the width and height of the image
-        # height, width, channels = image_display.shape
-        # self.img_width = width
-        # self.img_height = height
+        # increment the counter
         self.counter += 1
 
         # get the time
         self.get_current_time()
 
-        # display the image
-        #cv2.rectangle(image_display,(0,0),(1288,20),(0,0,0),-1)
-        #cv2.putText(image_display,"To save this frame, left-click on the image",(5,15),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
-        #cv2.putText(image_display,"Date/Time: " + self.time_str,(980,15),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
-        #cv2.putText(image_display, "Saved Images: " + str(self.counter),(575,15),cv2.FONT_HERSHEY_PLAIN,1,(0,0,255))
-        #cv2.imshow(self.opencv_window, image_display)
-        # wait about half a second
-        #cv2.waitKey(500)
+        # # display the image
+        # cv2.rectangle(image_display,(0,0),(1288,20),(0,0,0),-1)
+        # cv2.putText(image_display,"Date/Time: " + self.time_str,(980,15),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
+        # cv2.putText(image_display, "Saved Images: " + str(self.counter),(575,15),cv2.FONT_HERSHEY_PLAIN,1,(0,0,255))
+        # cv2.imshow('sniper cam state_image writer', image_display)
+        # #wait about half a second
+        # cv2.waitKey(500)
 
         #write the image to all_images folder
         self.write_image_to_file()
 
         #write the associated state data to filename
         self.write_state_to_file()
-
-
-    # def click_and_save(self, event, x, y, flags, param):
-    #     # if user clicks on target in the image frame
-    #     if event == cv2.EVENT_LBUTTONDOWN:
-    #         #write the image to all_images folder
-    #         self.write_image_to_file()
-    #
-    #         #write the associated state data to filename
-    #         self.write_state_to_file()
-    #
-    #         self.counter += 1
-    #     else:
-    #         pass
 
 
     def get_current_time(self):
