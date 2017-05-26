@@ -20,7 +20,7 @@
 # import os
 # import glob
 # import cv2
-# 
+#
 # #for filename in os.listdir('/home/jesse/Desktop/vision_files/target_images/target_1'):
 # #    print filename
 #
@@ -49,6 +49,7 @@ import cv2
 import math
 import numpy as np
 import os
+import glob
 import time
 from time import strftime, localtime
 from datetime import datetime
@@ -60,11 +61,12 @@ class SniperGeoLocator(object):
 
     def __init__(self):
         # setup state_image subscriber
-        self.state_image_subscriber = rospy.Subscriber('state_image', stateImage, self.state_image_callback, queue_size=1)
+        #self.state_image_subscriber = rospy.Subscriber('state_image', stateImage, self.state_image_callback, queue_size=1)
 
         # setup mouse click callback
-        cv2.namedWindow('sniper cam image')
-        cv2.setMouseCallback('sniper cam image', self.click_and_locate)
+        self.window = 'sniper cam image'
+        cv2.namedWindow(self.window)
+        cv2.setMouseCallback(self.window, self.click_and_locate)
 
         # initialize state variables
         self.pn = 0.0
@@ -96,25 +98,35 @@ class SniperGeoLocator(object):
         self.image_save = np.zeros(shape, np.uint8)
 
         # set vision_files directory
-        self.image_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_images/"
+        self.image_path = os.path.expanduser('~') + "/Desktop/vision_files/all_images/*.jpg"
 
-        self.txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_locations/"
+        self.file_list = glob.glob(self.image_path)
 
-        self.bridge = CvBridge()
+        # sort the files to be in chronological order
+        self.file_list.sort(key=os.path.getmtime)
+
+        self.image_number = 0
 
 
-    def state_image_callback(self, msg):
+        #elf.image_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_images/"
+
+        #self.txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_locations/"
+
+        #self.bridge = CvBridge()
+
+
+    def display_image(self):
         # pull off the state info from the message
-        self.pn = msg.pn
-        self.pe = msg.pe
-        self.pd = msg.pd
+        #self.pn = msg.pn
+        #self.pe = msg.pe
+        #self.pd = msg.pd
 
-        self.phi = msg.phi
-        self.theta = msg.theta
-        self.psi = msg.chi % (2*math.pi)    # here we approximate psi as chi mod 2*pi
+        #self.phi = msg.phi
+        #self.theta = msg.theta
+        #self.psi = msg.chi % (2*math.pi)    # here we approximate psi as chi mod 2*pi
 
-        self.alpha_az = msg.azimuth
-        self.alpha_el = msg.elevation
+        #self.alpha_az = msg.azimuth
+        #self.alpha_el = msg.elevation
 
         # direct conversion to CV2 of the image portion of the message
         #np_arr = np.fromstring(msg.image.data, dtype=np.uint8)
@@ -122,8 +134,15 @@ class SniperGeoLocator(object):
         #self.image_save = cv2.imdecode(np_arr, 1)
 
         # pull off the image portion of the message
-        image_display = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
-        self.image_save = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
+        #image_display = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
+        #self.image_save = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
+
+        # read in the image
+        filename = self.file_list[self.image_number]
+        stuff = filename.strip().split('/')
+        image_name = stuff[-1]  #get the last part of the file path
+        image_display = cv2.imread(os.path.expanduser('~') + "/Desktop/vision_files/all_images/" + image_name)
+        self.image_save = cv2.imread(os.path.expanduser('~') + "/Desktop/vision_files/all_images/" + image_name)
 
         # get the width and height of the image
         height, width, channels = image_display.shape
@@ -138,9 +157,16 @@ class SniperGeoLocator(object):
         cv2.putText(image_display,"Status: ",(5,25),cv2.FONT_HERSHEY_PLAIN,2,(0,255,0))
         cv2.putText(image_display, self.status,(140,25),cv2.FONT_HERSHEY_PLAIN,2,(self.color))
         cv2.putText(image_display,"Date/Time: " + self.time_str,(5,50),cv2.FONT_HERSHEY_PLAIN,1,(197,155,19))
-        cv2.imshow('sniper cam image', image_display)
-        # wait about half a second
-        cv2.waitKey(500)
+        cv2.rectangle(image_display,(width-180,0),(width,15),(0,0,0),-1)
+        cv2.putText(image_display, "Image number: " + str(self.image_number),(width-175,12),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
+        cv2.imshow(self.window, image_display)
+        key = cv2.waitKey(1000)
+        if key == 32:
+            self.image_number += 1
+        elif key == 81 and self.image_number > 0:
+            self.image_number -= 1
+        else:
+            pass
 
 
     def click_and_locate(self, event, x, y, flags, param):
@@ -262,7 +288,12 @@ def main():
     rospy.init_node('sniper_geo_locator')
 
     #create instance of class that subscribes to the stamped_image
-    subscriber = SniperGeoLocator()
+    locator = SniperGeoLocator()
+
+    while True:
+        locator.display_image()
+
+
     #spin
     try:
         rospy.spin()

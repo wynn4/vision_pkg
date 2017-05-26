@@ -16,13 +16,22 @@ file_list.sort(key=os.path.getmtime)
 
 while True:
     #load in the current image
+    #print image_number
     filename = file_list[image_number]
     stuff = filename.strip().split('/')
-    image_name = stuff[6]  #get the 7th thing in stuff
+    image_name = stuff[-1]  #get the last part of the file path
     image = cv2.imread(os.path.expanduser('~') + "/Desktop/vision_files/all_images/" + image_name)
     cv2.imshow('image', image)
-    k = cv2.waitKey(30)
-    print k
+    key = cv2.waitKey(1000)
+    if key == 32:
+        image_number += 1
+    elif key == 81 and image_number > 0:
+        image_number -= 1
+    # elif cv2.waitKey(10) == 81 and image_number > 0:
+        # image_number -= 1
+    else:
+        pass
+
 
 # def click(event, x, y, flags, param):
 #     # if user clicks on target in the image frame
