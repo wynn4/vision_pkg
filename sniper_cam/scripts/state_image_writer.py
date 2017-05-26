@@ -31,9 +31,9 @@ class StateImageWriter(object):
         self.state_image_subscriber = rospy.Subscriber('state_image', stateImage, self.state_image_callback, queue_size=1)
 
         # setup mouse click callback
-        self.opencv_window = 'sniper cam state_image writer'
-        cv2.namedWindow(self.opencv_window)
-        cv2.setMouseCallback(self.opencv_window, self.click_and_save)
+        #self.opencv_window = 'sniper cam state_image writer'
+        #cv2.namedWindow(self.opencv_window)
+        #cv2.setMouseCallback(self.opencv_window, self.click_and_save)
 
         # initialize state variables
         self.pn = 0.0
@@ -86,52 +86,61 @@ class StateImageWriter(object):
         #self.image_save = cv2.imdecode(np_arr, 1)
 
         # pull off the image portion of the message
-        image_display = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
+        #image_display = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
         self.image_save = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
 
         # # get the width and height of the image
         # height, width, channels = image_display.shape
         # self.img_width = width
         # self.img_height = height
+        self.counter += 1
 
         # get the time
         self.get_current_time()
 
         # display the image
-        cv2.rectangle(image_display,(0,0),(1288,20),(0,0,0),-1)
-        cv2.putText(image_display,"To save this frame, left-click on the image",(5,15),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
-        cv2.putText(image_display,"Date/Time: " + self.time_str,(1000,15),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
-        cv2.putText(image_display, "Saved Images: " + str(self.counter),(575,15),cv2.FONT_HERSHEY_PLAIN,1,(0,0,255))
-        cv2.imshow(self.opencv_window, image_display)
+        #cv2.rectangle(image_display,(0,0),(1288,20),(0,0,0),-1)
+        #cv2.putText(image_display,"To save this frame, left-click on the image",(5,15),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
+        #cv2.putText(image_display,"Date/Time: " + self.time_str,(980,15),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
+        #cv2.putText(image_display, "Saved Images: " + str(self.counter),(575,15),cv2.FONT_HERSHEY_PLAIN,1,(0,0,255))
+        #cv2.imshow(self.opencv_window, image_display)
         # wait about half a second
-        cv2.waitKey(500)
+        #cv2.waitKey(500)
+
+        #write the image to all_images folder
+        self.write_image_to_file()
+
+        #write the associated state data to filename
+        self.write_state_to_file()
 
 
-    def click_and_save(self, event, x, y, flags, param):
-        # if user clicks on target in the image frame
-        if event == cv2.EVENT_LBUTTONDOWN:
-            #write the image to all_images folder
-            self.write_image_to_file()
-
-            #write the associated state data to filename
-            self.write_state_to_file()
-
-            self.counter += 1
-        else:
-            pass
+    # def click_and_save(self, event, x, y, flags, param):
+    #     # if user clicks on target in the image frame
+    #     if event == cv2.EVENT_LBUTTONDOWN:
+    #         #write the image to all_images folder
+    #         self.write_image_to_file()
+    #
+    #         #write the associated state data to filename
+    #         self.write_state_to_file()
+    #
+    #         self.counter += 1
+    #     else:
+    #         pass
 
 
     def get_current_time(self):
         dt = datetime.now()
         m_time = dt.microsecond
         m_time = str(m_time)[:3]
-        time_now = strftime("%m%d%y-%H:%M:%S:" + m_time, localtime())
+        time_now = strftime("%m%d%y_%H-%M-%S-" + m_time, localtime())
         self.time_str = str(time_now)
 
 
     def write_image_to_file(self):
         filename = self.time_str + ".jpg"
         cv2.imwrite(self.image_directory + filename, self.image_save)
+
+        print "Images written: " + str(self.counter)
 
 
     def write_state_to_file(self):
