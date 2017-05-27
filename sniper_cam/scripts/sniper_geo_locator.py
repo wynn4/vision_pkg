@@ -152,18 +152,21 @@ class SniperGeoLocator(object):
         # get the time
         self.get_current_time()
 
-        # display the image
+        # draw the interface on the display image
         cv2.rectangle(image_display,(0,0),(310,60),(0,0,0),-1)
         cv2.putText(image_display,"Status: ",(5,25),cv2.FONT_HERSHEY_PLAIN,2,(0,255,0))
         cv2.putText(image_display, self.status,(140,25),cv2.FONT_HERSHEY_PLAIN,2,(self.color))
         cv2.putText(image_display,"Date/Time: " + self.time_str,(5,50),cv2.FONT_HERSHEY_PLAIN,1,(197,155,19))
         cv2.rectangle(image_display,(width-180,0),(width,15),(0,0,0),-1)
         cv2.putText(image_display, "Image number: " + str(self.image_number),(width-175,12),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
+
+        # display the image
         cv2.imshow(self.window, image_display)
-        key = cv2.waitKey(1000)
-        if key == 32:
+        key = cv2.waitKey(500)
+
+        if key == 32:   # spacebar
             self.image_number += 1
-        elif key == 81 and self.image_number > 0:
+        elif key == 81 and self.image_number > 0: # left arrow
             self.image_number -= 1
         else:
             pass
@@ -289,6 +292,7 @@ def main():
 
     #create instance of class that subscribes to the stamped_image
     locator = SniperGeoLocator()
+
 
     while True:
         locator.display_image()
