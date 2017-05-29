@@ -1,8 +1,8 @@
 #! /usr/bin/env python
 
 ## Simple ROS node that:
-## -subscribes to state_image topic
-## -displays the image portion of the message
+## -cycles through the all_images directory
+## -displays the image
 ## -if user clicks target in image:
 ##  -capture x,y pixel coord
 ##  -calculate target NED location
@@ -11,39 +11,11 @@
 ## -right click in image window increments target number
 ## -middle click decrements target number
 
-## Geolocation Method Based on Chapter 13 of Small Unmanned Aircraft Theory and Practice by R. Beard and T. McLain
-## Peter Schleede AUVSI '17
-## Jesse Wynn AUVSI '17
-
-## Note: As of 05/22/17 this node only works as designed with Ubuntu 14.04 and OpenCV version 2.4
-
-# import os
-# import glob
-# import cv2
-#
-# #for filename in os.listdir('/home/jesse/Desktop/vision_files/target_images/target_1'):
-# #    print filename
-#
-# path = '/home/jesse/Desktop/vision_files/target_images/target_1/*.jpg'
-# #for filename in glob.glob(path):
-# #    print(filename)
-#
-#
-# file_list = glob.glob(path)
-# file_list.sort(key=os.path.getmtime)
-# for filename in file_list:
-#     image = cv2.imread(filename)
-#     cv2.imshow('image', image)
-#     cv2.waitKey(2000)
-#
-# cv2.destroyAllWindows()
-
-
 import rospy
 from sensor_msgs.msg import CompressedImage
 from sniper_cam.msg import stateImage
 from fcu_common.msg import State
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Float32MultiArray
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import math
@@ -60,13 +32,16 @@ class SniperGeoLocator(object):
     # assumes 'flat_earth'
 
     def __init__(self):
-        # setup state_image subscriber
-        #self.state_image_subscriber = rospy.Subscriber('state_image', stateImage, self.state_image_callback, queue_size=1)
+        #setup gps_init subscriber
+        self.gps_init_sub = rospy.Subscriber('/gps_init', Float32MultiArray, self.gps_init_cb)
 
         # setup mouse click callback
         self.window = 'sniper cam image'
         cv2.namedWindow(self.window)
         cv2.setMouseCallback(self.window, self.click_and_locate)
+
+        # home location (from gps_init)
+        self.home = [0.0, 0.0, 0.0] # lat, lon, alt
 
         # initialize state variables
         self.pn = 0.0
@@ -90,7 +65,7 @@ class SniperGeoLocator(object):
         self.target_number = 0
 
         self.status = "Standby..."
-        self.time_str = "_"
+        #self.time_str = "_"
         self.color = 0, 0, 255
 
         # initialize the image to save
@@ -105,14 +80,18 @@ class SniperGeoLocator(object):
         # sort the files to be in chronological order
         self.file_list.sort(key=os.path.getmtime)
 
+
         self.image_number = 0
 
 
-        #elf.image_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_images/"
+        self.image_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_images_sorted/"
 
-        #self.txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_locations/"
+        self.txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_locations_sorted/"
 
-        #self.bridge = CvBridge()
+        self.all_txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/all_state_files/"
+
+        self.image_id = "_"
+
 
 
     def display_image(self):
@@ -137,10 +116,14 @@ class SniperGeoLocator(object):
         #image_display = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
         #self.image_save = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
 
+
         # read in the image
         filename = self.file_list[self.image_number]
         stuff = filename.strip().split('/')
         image_name = stuff[-1]  #get the last part of the file path
+
+        #set the current image id
+        self.image_id = image_name[:19] #get the first 19 characters of the image name (everything except '.jpg')
         image_display = cv2.imread(os.path.expanduser('~') + "/Desktop/vision_files/all_images/" + image_name)
         self.image_save = cv2.imread(os.path.expanduser('~') + "/Desktop/vision_files/all_images/" + image_name)
 
@@ -150,31 +133,38 @@ class SniperGeoLocator(object):
         self.img_height = height
 
         # get the time
-        self.get_current_time()
+        #self.get_current_time()
 
         # draw the interface on the display image
         cv2.rectangle(image_display,(0,0),(310,60),(0,0,0),-1)
         cv2.putText(image_display,"Status: ",(5,25),cv2.FONT_HERSHEY_PLAIN,2,(0,255,0))
         cv2.putText(image_display, self.status,(140,25),cv2.FONT_HERSHEY_PLAIN,2,(self.color))
-        cv2.putText(image_display,"Date/Time: " + self.time_str,(5,50),cv2.FONT_HERSHEY_PLAIN,1,(197,155,19))
+        cv2.putText(image_display,"Date/Time: " + self.image_id,(5,50),cv2.FONT_HERSHEY_PLAIN,1,(197,155,19))
         cv2.rectangle(image_display,(width-180,0),(width,15),(0,0,0),-1)
         cv2.putText(image_display, "Image number: " + str(self.image_number),(width-175,12),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
 
         # display the image
         cv2.imshow(self.window, image_display)
         key = cv2.waitKey(500)
+        #print key
 
-        if key == 32:   # spacebar
+        if key == 32 and len(self.file_list) > self.image_number + 1:   # spacebar
             self.image_number += 1
-        elif key == 81 and self.image_number > 0: # left arrow
+            self.update_file_list()
+        elif key == 98 and self.image_number > 0: # 'B' key for 'back'
             self.image_number -= 1
+        elif key == 32 and len(self.file_list) == self.image_number + 1:
+            print "End of file list reached"
+            self.update_file_list()
         else:
             pass
 
 
     def click_and_locate(self, event, x, y, flags, param):
         # if user clicks on target in the image frame
-        if event == cv2.EVENT_LBUTTONDOWN and self.target_number > 0:
+        if event == cv2.EVENT_LBUTTONDOWN and self.target_number > 0  and self.image_number > 0:
+            #parse text file containing associated state data
+            self.parse_state_file()
             self.chapter_13_geolocation(x,y)
 
         elif event == cv2.EVENT_RBUTTONDOWN:
@@ -261,17 +251,37 @@ class SniperGeoLocator(object):
         self.write_location_to_file(p_obj)
 
 
-    def get_current_time(self):
-        dt = datetime.now()
-        m_time = dt.microsecond
-        m_time = str(m_time)[:3]
-        time_now = strftime("%m%d%y-%H:%M:%S:" + m_time, localtime())
-        self.time_str = str(time_now)
+    # def get_current_time(self):
+    #     dt = datetime.now()
+    #     m_time = dt.microsecond
+    #     m_time = str(m_time)[:3]
+    #     time_now = strftime("%m%d%y-%H:%M:%S:" + m_time, localtime())
+    #     self.time_str = str(time_now)
+
+
+    def parse_state_file(self):
+        filename = self.image_id + ".txt"
+        f = open(self.all_txt_directory + filename, 'r')
+        for line in f:
+            #get a list of the state data
+            state_data = line.strip().split(',')
+
+            #update the member variables for geolocation
+            self.pn = float(state_data[0])
+            self.pe = float(state_data[1])
+            self.pd = float(state_data[2])
+
+            self.phi = float(state_data[3])
+            self.theta = float(state_data[4])
+            self.psi = float(state_data[5])%(2*math.pi) #here we approximate psi as chi mod 2*pi
+
+            self.alpha_az = float(state_data[6])
+            self.alpha_el = float(state_data[7])
 
 
     def write_image_to_file(self):
         target_folder = "target_" + str(self.target_number) + "/"
-        filename = self.time_str + ".jpg"
+        filename = self.image_id + ".jpg"
         cv2.imwrite(self.image_directory + target_folder + filename, self.image_save)
 
 
@@ -279,24 +289,34 @@ class SniperGeoLocator(object):
         filename = "target_" + str(self.target_number) + "_locations.txt"
         f = open(self.txt_directory + filename, 'a')
         try:
-            f.write(self.time_str + "," + str(self.target_number) + "," +
+            f.write(self.image_id + "," + str(self.target_number) + "," +
                     str(location[0]) + "," + str(location[1]) + "," + str(math.degrees(self.psi)))
             f.write("\n")
         finally:
             f.close()
+
+    def gps_init_cb(self, gps_init_array):
+        self.home[0] = gps_init_array.data[0]
+        self.home[1] = gps_init_array.data[1]
+        self.home[2] = gps_init_array.data[2]
+
+        self.gps_init_sub.unregister()
+
+    def update_file_list(self):
+        self.file_list = glob.glob(self.image_path)
+        self.file_list.sort(key=os.path.getmtime)
+
 
 
 def main():
     #initialize the node
     rospy.init_node('sniper_geo_locator')
 
-    #create instance of class that subscribes to the stamped_image
+    #create instance of SniperGeoLocator class
     locator = SniperGeoLocator()
 
-
-    while True:
+    while not rospy.is_shutdown():
         locator.display_image()
-
 
     #spin
     try:
