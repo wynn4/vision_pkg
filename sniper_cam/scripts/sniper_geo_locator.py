@@ -7,7 +7,7 @@
 ##  -capture x,y pixel coord
 ##  -calculate target NED location
 ##  -wirte image to target-sorted file
-##  -write NED location and heading to target-sorted file
+##  -write location and heading to target-sorted file
 ## -right click in image window increments target number
 ## -middle click decrements target number
 
@@ -40,7 +40,7 @@ class SniperGeoLocator(object):
         cv2.namedWindow(self.window)
         cv2.setMouseCallback(self.window, self.click_and_locate)
 
-        # home location (from gps_init)
+        # initialize home location (from gps_init)
         self.home = [0.0, 0.0, 0.0] # lat, lon, alt
 
         # initialize state variables
@@ -58,64 +58,46 @@ class SniperGeoLocator(object):
         # initialize image parameters
         self.img_width = 0.0
         self.img_height = 0.0
-        self.fov_w = 47.2   #with PointGrey Chameleon3 and 6mm lens from M12lenses.com
-        self.fov_h = 34.0   #with PointGrey Chameleon3 and 6mm lens from M12lenses.com
+        self.fov_w = math.radians(47.2)   # field of view width with PointGrey Chameleon3 and 6mm lens from M12lenses.com
+        self.fov_h = math.radians(34.0)   # field of view height with PointGrey Chameleon3 and 6mm lens from M12lenses.com
 
         # initialize target number
         self.target_number = 0
 
         self.status = "Standby..."
-        #self.time_str = "_"
+
         self.color = 0, 0, 255
 
         # initialize the image to save
         shape = 964, 1288, 3
         self.image_save = np.zeros(shape, np.uint8)
 
-        # set vision_files directory
+        # set the all images directory
         self.image_path = os.path.expanduser('~') + "/Desktop/vision_files/all_images/*.jpg"
 
+        # set the all state files directory
+        self.all_txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/all_state_files/"
+
+        # initialize a list of all the files in the all images directory
         self.file_list = glob.glob(self.image_path)
 
         # sort the files to be in chronological order
         self.file_list.sort(key=os.path.getmtime)
 
-
+        # initialize the image number
         self.image_number = 0
 
-
+        # set the sorted target images directory
         self.image_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_images_sorted/"
 
+        # set the sorted target locations directory
         self.txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/target_locations_sorted/"
 
-        self.all_txt_directory = os.path.expanduser('~') + "/Desktop/vision_files/all_state_files/"
-
+        # initialize the image ID
         self.image_id = "_"
 
 
-
     def display_image(self):
-        # pull off the state info from the message
-        #self.pn = msg.pn
-        #self.pe = msg.pe
-        #self.pd = msg.pd
-
-        #self.phi = msg.phi
-        #self.theta = msg.theta
-        #self.psi = msg.chi % (2*math.pi)    # here we approximate psi as chi mod 2*pi
-
-        #self.alpha_az = msg.azimuth
-        #self.alpha_el = msg.elevation
-
-        # direct conversion to CV2 of the image portion of the message
-        #np_arr = np.fromstring(msg.image.data, dtype=np.uint8)
-        #image_display = cv2.imdecode(np_arr, 1)
-        #self.image_save = cv2.imdecode(np_arr, 1)
-
-        # pull off the image portion of the message
-        #image_display = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
-        #self.image_save = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
-
 
         # read in the image
         filename = self.file_list[self.image_number]
@@ -132,16 +114,15 @@ class SniperGeoLocator(object):
         self.img_width = width
         self.img_height = height
 
-        # get the time
-        #self.get_current_time()
-
         # draw the interface on the display image
-        cv2.rectangle(image_display,(0,0),(310,60),(0,0,0),-1)
-        cv2.putText(image_display,"Status: ",(5,25),cv2.FONT_HERSHEY_PLAIN,2,(0,255,0))
-        cv2.putText(image_display, self.status,(140,25),cv2.FONT_HERSHEY_PLAIN,2,(self.color))
-        cv2.putText(image_display,"Date/Time: " + self.image_id,(5,50),cv2.FONT_HERSHEY_PLAIN,1,(197,155,19))
-        cv2.rectangle(image_display,(width-180,0),(width,15),(0,0,0),-1)
-        cv2.putText(image_display, "Image number: " + str(self.image_number),(width-175,12),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
+        cv2.rectangle(image_display,(width-240,0),(width,35),(0,0,0),-1)
+        cv2.putText(image_display, "Status: ",(width-210,15),cv2.FONT_HERSHEY_PLAIN,1.25,(0,255,0))
+        cv2.putText(image_display, self.status,(width-130,15),cv2.FONT_HERSHEY_PLAIN,1.25,(self.color))
+        cv2.putText(image_display,"ID: " + self.image_id,(width-230,30),cv2.FONT_HERSHEY_PLAIN,1,(197,155,19))
+        cv2.rectangle(image_display,(0,0),(180,15),(0,0,0),-1)
+        cv2.putText(image_display, "Image number: " + str(self.image_number),(5,12),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
+        cv2.line(image_display,((width/2)-10,height/2),((width/2)+10,height/2),self.color)
+        cv2.line(image_display,(width/2,(height/2)+10),(width/2,(height/2)-10),self.color)
 
         # display the image
         cv2.imshow(self.window, image_display)
@@ -251,14 +232,6 @@ class SniperGeoLocator(object):
         self.write_location_to_file(p_obj)
 
 
-    # def get_current_time(self):
-    #     dt = datetime.now()
-    #     m_time = dt.microsecond
-    #     m_time = str(m_time)[:3]
-    #     time_now = strftime("%m%d%y-%H:%M:%S:" + m_time, localtime())
-    #     self.time_str = str(time_now)
-
-
     def parse_state_file(self):
         filename = self.image_id + ".txt"
         f = open(self.all_txt_directory + filename, 'r')
@@ -274,6 +247,7 @@ class SniperGeoLocator(object):
             self.phi = float(state_data[3])
             self.theta = float(state_data[4])
             self.psi = float(state_data[5])%(2*math.pi) #here we approximate psi as chi mod 2*pi
+            # self.psi = float(state_data[5])
 
             self.alpha_az = float(state_data[6])
             self.alpha_el = float(state_data[7])
@@ -295,17 +269,23 @@ class SniperGeoLocator(object):
         finally:
             f.close()
 
+
     def gps_init_cb(self, gps_init_array):
         self.home[0] = gps_init_array.data[0]
         self.home[1] = gps_init_array.data[1]
         self.home[2] = gps_init_array.data[2]
 
+        print "Home location received"
+        print "Home Lat: " + str(self.home[0])
+        print "Home Lon: " + str(self.home[1])
+        print "Home Alt: " + str(self.home[2])
+
         self.gps_init_sub.unregister()
+
 
     def update_file_list(self):
         self.file_list = glob.glob(self.image_path)
         self.file_list.sort(key=os.path.getmtime)
-
 
 
 def main():
