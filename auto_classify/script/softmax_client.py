@@ -2,7 +2,7 @@
 
 import sys, os
 import rospy
-from beginner_tutorials.srv import *
+from auto_classify.srv import *
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 import batch_utils

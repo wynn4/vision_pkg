@@ -18,7 +18,7 @@ import numpy as np
 import sys, os
 from scipy.misc import imsave, imshow
 from PIL import Image
-from beginner_tutorials.srv import *
+from auto_classify.srv import *
 from sniper_cam.msg import stateImage
 
 #import batch_utils

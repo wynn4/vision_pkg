@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-import roslib; roslib.load_manifest('beginner_tutorials')
-from beginner_tutorials.srv import *
+import roslib; roslib.load_manifest('auto_classify')
+from auto_classify.srv import *
 import rospy
 
 import tensorflow as tf
