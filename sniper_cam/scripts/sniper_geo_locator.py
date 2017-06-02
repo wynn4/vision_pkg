@@ -35,13 +35,16 @@ class SniperGeoLocator(object):
         #setup gps_init subscriber
         self.gps_init_sub = rospy.Subscriber('/gps_init', Float32MultiArray, self.gps_init_cb)
 
+        # get the earth's radius from current location
+        self.R_earth = rospy.get_param('~radius_earth', 6370027)    #default set to radius at Webster Field MD
+
         # setup mouse click callback
         self.window = 'sniper cam image'
         cv2.namedWindow(self.window)
         cv2.setMouseCallback(self.window, self.click_and_locate)
 
         # initialize home location (from gps_init)
-        self.home = [0.0, 0.0, 0.0] # lat, lon, alt
+        self.home = [40.247458, -111.647783, 0.0] # lat, lon, alt (default BYU)
 
         # initialize state variables
         self.pn = 0.0
@@ -96,8 +99,16 @@ class SniperGeoLocator(object):
         # initialize the image ID
         self.image_id = "_"
 
+        self.got_gps_init = False
+
 
     def display_image(self):
+
+        # check to see if GPS Init data received
+        if self.got_gps_init == False:
+            print "Warning! GPS_Init not received"
+        else:
+            pass
 
         # read in the image
         filename = self.file_list[self.image_number]
@@ -217,7 +228,7 @@ class SniperGeoLocator(object):
         big_term_h = R_b_i.dot(R_g_b.dot(R_c_g.dot(el_hat_c_h)))
         den_h = np.dot(k_i.T,big_term_h)
 
-        # calculate the location of the target
+        # calculate the location of the target in NED
         p_obj_w = p_uav + h*big_term_w/den_w                        #EQ 13.18
         p_obj_h = p_uav + h*big_term_h/den_h
         p_obj = [float(p_obj_h[0]),float(p_obj_w[1]),float(p_obj_w[2])]
@@ -260,11 +271,15 @@ class SniperGeoLocator(object):
 
 
     def write_location_to_file(self, location):
+        # convert location from NED to lat lon
+        lat = self.home[0] + math.degrees(math.asin(location[0]/self.R_earth))
+        lon = self.home[1] + math.degrees(math.asin(location[1]/(math.cos(math.radians(self.home[0]))*self.R_earth)))
+
         filename = "target_" + str(self.target_number) + "_locations.txt"
         f = open(self.txt_directory + filename, 'a')
         try:
             f.write(self.image_id + "," + str(self.target_number) + "," +
-                    str(location[0]) + "," + str(location[1]) + "," + str(math.degrees(self.psi)))
+                    str(lat) + "," + str(lon) + "," + str(math.degrees(self.psi)))
             f.write("\n")
         finally:
             f.close()
@@ -274,6 +289,8 @@ class SniperGeoLocator(object):
         self.home[0] = gps_init_array.data[0]
         self.home[1] = gps_init_array.data[1]
         self.home[2] = gps_init_array.data[2]
+
+        self.got_gps_init = True
 
         print "Home location received"
         print "Home Lat: " + str(self.home[0])
