@@ -11,6 +11,7 @@ from PIL import Image as Im
 from PIL import ImageTk
 from functools import partial
 from math import ceil, sqrt
+import cv2
 import rospy
 import roslib
 from sensor_msgs.msg import Image
@@ -135,7 +136,7 @@ class Application(Frame):
                                     int((self.curX-offsetX)*self.w_mult), int((self.curY-offsetY)*self.h_mult)))
             else:
                 self.croppedImage = self.toBeCropped.crop((self.start_x-offsetX, self.start_y-offsetY,self.curX-offsetX, self.curY-offsetY))
-            self.croppedImage = self.croppedImage.resize((450,450))
+            self.croppedImage = self.croppedImage.resize((1288,964), Im.BICUBIC)
             #print('{0} {1} {2} {3}'.format(self.start_x, self.start_y, self.curX, self.curY))
             self.image_tk = ImageTk.PhotoImage(self.croppedImage)
             # create the label with the embedded image
@@ -270,10 +271,10 @@ class Application(Frame):
         self.image = Im.open(filename)
         self.originalImage = self.image
         width, height = self.image.size
-        self.w_mult = float(width) / 450
-        self.h_mult = float(height) / 450
+        self.w_mult = float(width) / 1288
+        self.h_mult = float(height) / 964
         # resizes the image so that all are the same size
-        self.image = self.image.resize((450, 450), Im.ANTIALIAS)
+        self.image = self.image.resize((1288, 964), Im.BICUBIC)
         # converts the PIL image to a tk image
         self.image_tk = ImageTk.PhotoImage(self.image)
         # create the label with the embedded image
@@ -336,7 +337,7 @@ class Application(Frame):
 
         self.images = [x for x in files if '.jpg' in x]
         self.savedImages = []
-        self.paramDir = os.path.join(os.path.dirname(os.path.dirname(self.targetDir)),'target_locations')
+        self.paramDir = os.path.join(os.path.dirname(os.path.dirname(self.targetDir)),'target_locations_sorted')
         try:
             locations_files = os.listdir(self.paramDir)
         except OSError:
