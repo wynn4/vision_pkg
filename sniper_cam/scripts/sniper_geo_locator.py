@@ -44,7 +44,7 @@ class SniperGeoLocator(object):
         cv2.setMouseCallback(self.window, self.click_and_locate)
 
         # initialize home location (from gps_init)
-        self.home = [40.247458, -111.647783, 0.0] # lat, lon, alt (default BYU)
+        self.home = [40.174500, -111.651665, 0.0] # lat, lon, alt (default BYU)
 
         # initialize state variables
         self.pn = 0.0
@@ -63,6 +63,23 @@ class SniperGeoLocator(object):
         self.img_height = 0.0
         self.fov_w = math.radians(47.2)   # field of view width with PointGrey Chameleon3 and 6mm lens from M12lenses.com
         self.fov_h = math.radians(34.0)   # field of view height with PointGrey Chameleon3 and 6mm lens from M12lenses.com
+
+        # set the camera calibration parameters (hard-coded from calibration)
+        self.fx = 1622.655818
+        self.cx = 617.719411
+        self.fy = 1624.083744
+        self.cy = 407.261222
+        self.k1 = -0.596969
+        self.k2 = 0.339409
+        self.p1 = 0.000552
+        self.p2 = -0.000657
+        self.k3 = 0.000000
+
+        self.cameraMatrix = np.array([[self.fx, 0.0, self.cx],
+                                [0.0, self.fy, self.cy],
+                                [0.0, 0.0, 1.0]], dtype = np.float64)
+
+        self.distCoeff = np.array([self.k1, self.k2, self.p1, self.p2, self.k3], dtype = np.float64)
 
         # initialize target number
         self.target_number = 0
@@ -179,14 +196,26 @@ class SniperGeoLocator(object):
 
 
     def chapter_13_geolocation(self,x,y):
+        # get the undistorted pixel coordinate
+        src = np.array([[[x, y]]], dtype = np.float64)  #src is input pixel coordinates
+        undistortedProjection = cv2.undistortPoints(src,self.cameraMatrix,self.distCoeff)
+
+        # multiply the projection by the focal length and then add the offset to convert back to pixels
+        undistortedPixel_x = undistortedProjection[0][0][0]*self.fx + self.cx
+        undistortedPixel_y = undistortedProjection[0][0][1]*self.fy + self.cy
+
+        # the new undistorted pixel values
+        x_new = undistortedPixel_x
+        y_new = undistortedPixel_y
+
         # geolocate the object (target) using technique from UAV book chapter 13
+
+        # capture pixel coordinates
+        px = x_new;
+        py = y_new;
 
         # position of the UAV
         p_uav = np.array([[self.pn],[self.pe],[self.pd]])
-
-        #capture pixel coordinates
-        px = x;
-        py = y;
 
         # convert to pixel locations measured from image center (0,0)
         eps_x = px - self.img_width/2.0
@@ -237,6 +266,7 @@ class SniperGeoLocator(object):
         print "Target " + str(self.target_number) + " image and location captured"
         print p_obj
         # print eps_x, eps_y
+        # print "\n"
 
         # write the image to file
         self.write_image_to_file()
