@@ -39,7 +39,7 @@ class SniperGeoLocator(object):
         self.R_earth = rospy.get_param('~radius_earth', 6370027)    #default set to radius at Webster Field MD
 
         # setup mouse click callback
-        self.window = 'sniper cam image'
+        self.window = 'onboard image'
         cv2.namedWindow(self.window)
         cv2.setMouseCallback(self.window, self.click_and_locate)
 
@@ -116,7 +116,8 @@ class SniperGeoLocator(object):
         image_name = stuff[-1]  #get the last part of the file path
 
         #set the current image id
-        self.image_id = image_name[:19] #get the first 19 characters of the image name (everything except '.jpg')
+        fn, fext = os.path.splitext(image_name)
+        self.image_id = fn
         image_display = cv2.imread(os.path.expanduser('~') + "/Desktop/vision_files/all_images/" + image_name)
         self.image_save = cv2.imread(os.path.expanduser('~') + "/Desktop/vision_files/all_images/" + image_name)
 
@@ -125,13 +126,16 @@ class SniperGeoLocator(object):
         self.img_width = width
         self.img_height = height
 
+        # update file list
+        self.update_file_list()
+
         # draw the interface on the display image
         cv2.rectangle(image_display,(width-240,0),(width,35),(0,0,0),-1)
         cv2.putText(image_display, "Status: ",(width-210,15),cv2.FONT_HERSHEY_PLAIN,1.25,(0,255,0))
         cv2.putText(image_display, self.status,(width-130,15),cv2.FONT_HERSHEY_PLAIN,1.25,(self.color))
         cv2.putText(image_display,"ID: " + self.image_id,(width-230,30),cv2.FONT_HERSHEY_PLAIN,1,(197,155,19))
-        cv2.rectangle(image_display,(0,0),(180,15),(0,0,0),-1)
-        cv2.putText(image_display, "Image number: " + str(self.image_number),(5,12),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
+        cv2.rectangle(image_display,(0,0),(230,15),(0,0,0),-1)
+        cv2.putText(image_display, "Image number: " + str(self.image_number) + "/" + str(len(self.file_list)-1),(5,12),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
         cv2.line(image_display,((width/2)-10,height/2),((width/2)+10,height/2),self.color)
         cv2.line(image_display,(width/2,(height/2)+10),(width/2,(height/2)-10),self.color)
 
@@ -142,12 +146,10 @@ class SniperGeoLocator(object):
 
         if key == 32 and len(self.file_list) > self.image_number + 1:   # spacebar
             self.image_number += 1
-            self.update_file_list()
         elif key == 98 and self.image_number > 0: # 'B' key for 'back'
             self.image_number -= 1
         elif key == 32 and len(self.file_list) == self.image_number + 1:
             print "End of file list reached"
-            self.update_file_list()
         else:
             pass
 
@@ -174,7 +176,6 @@ class SniperGeoLocator(object):
                 self.status = "Target " + str(self.target_number)
         else:
             pass
-
 
 
     def chapter_13_geolocation(self,x,y):
@@ -233,8 +234,9 @@ class SniperGeoLocator(object):
         p_obj_h = p_uav + h*big_term_h/den_h
         p_obj = [float(p_obj_h[0]),float(p_obj_w[1]),float(p_obj_w[2])]
 
+        print "Target " + str(self.target_number) + " image and location captured"
         print p_obj
-        print eps_x, eps_y
+        # print eps_x, eps_y
 
         # write the image to file
         self.write_image_to_file()
