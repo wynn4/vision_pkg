@@ -8,3 +8,4 @@ string symbol
 string symbol_color
 uint32 orientation
 string description
+bool autonomous
