@@ -336,7 +336,7 @@ class Application(Frame):
 
         self.images = [x for x in files if '.jpg' in x]
         self.savedImages = []
-        self.paramDir = os.path.join(os.path.dirname(os.path.dirname(self.targetDir)),'target_locations')
+        self.paramDir = os.path.join(os.path.dirname(os.path.dirname(self.targetDir)),'target_locations_sorted')
         try:
             locations_files = os.listdir(self.paramDir)
         except OSError:
