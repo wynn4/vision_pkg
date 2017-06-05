@@ -14,7 +14,6 @@
 import rospy
 from sensor_msgs.msg import CompressedImage
 from sniper_cam.msg import stateImage
-from rosflight_msgs.msg import State
 from std_msgs.msg import Float64, Float32MultiArray
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
