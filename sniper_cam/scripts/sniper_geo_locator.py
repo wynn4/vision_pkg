@@ -14,7 +14,6 @@
 import rospy
 from sensor_msgs.msg import CompressedImage
 from sniper_cam.msg import stateImage
-from fcu_common.msg import State
 from std_msgs.msg import Float64, Float32MultiArray
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
@@ -35,13 +34,16 @@ class SniperGeoLocator(object):
         #setup gps_init subscriber
         self.gps_init_sub = rospy.Subscriber('/gps_init', Float32MultiArray, self.gps_init_cb)
 
+        # get the earth's radius from current location
+        self.R_earth = rospy.get_param('~radius_earth', 6370027)    #default set to radius at Webster Field MD
+
         # setup mouse click callback
-        self.window = 'sniper cam image'
+        self.window = 'onboard image'
         cv2.namedWindow(self.window)
         cv2.setMouseCallback(self.window, self.click_and_locate)
 
         # initialize home location (from gps_init)
-        self.home = [0.0, 0.0, 0.0] # lat, lon, alt
+        self.home = [40.174500, -111.651665, 0.0] # lat, lon, alt (default BYU)
 
         # initialize state variables
         self.pn = 0.0
@@ -60,6 +62,23 @@ class SniperGeoLocator(object):
         self.img_height = 0.0
         self.fov_w = math.radians(47.2)   # field of view width with PointGrey Chameleon3 and 6mm lens from M12lenses.com
         self.fov_h = math.radians(34.0)   # field of view height with PointGrey Chameleon3 and 6mm lens from M12lenses.com
+
+        # set the camera calibration parameters (hard-coded from calibration)
+        self.fx = 1622.655818
+        self.cx = 617.719411
+        self.fy = 1624.083744
+        self.cy = 407.261222
+        self.k1 = -0.596969
+        self.k2 = 0.339409
+        self.p1 = 0.000552
+        self.p2 = -0.000657
+        self.k3 = 0.000000
+
+        self.cameraMatrix = np.array([[self.fx, 0.0, self.cx],
+                                [0.0, self.fy, self.cy],
+                                [0.0, 0.0, 1.0]], dtype = np.float64)
+
+        self.distCoeff = np.array([self.k1, self.k2, self.p1, self.p2, self.k3], dtype = np.float64)
 
         # initialize target number
         self.target_number = 0
@@ -96,8 +115,16 @@ class SniperGeoLocator(object):
         # initialize the image ID
         self.image_id = "_"
 
+        self.got_gps_init = False
+
 
     def display_image(self):
+
+        # check to see if GPS Init data received
+        if self.got_gps_init == False:
+            print "Warning! GPS_Init not received"
+        else:
+            pass
 
         # read in the image
         filename = self.file_list[self.image_number]
@@ -105,7 +132,8 @@ class SniperGeoLocator(object):
         image_name = stuff[-1]  #get the last part of the file path
 
         #set the current image id
-        self.image_id = image_name[:19] #get the first 19 characters of the image name (everything except '.jpg')
+        fn, fext = os.path.splitext(image_name)
+        self.image_id = fn
         image_display = cv2.imread(os.path.expanduser('~') + "/Desktop/vision_files/all_images/" + image_name)
         self.image_save = cv2.imread(os.path.expanduser('~') + "/Desktop/vision_files/all_images/" + image_name)
 
@@ -114,13 +142,16 @@ class SniperGeoLocator(object):
         self.img_width = width
         self.img_height = height
 
+        # update file list
+        self.update_file_list()
+
         # draw the interface on the display image
         cv2.rectangle(image_display,(width-240,0),(width,35),(0,0,0),-1)
         cv2.putText(image_display, "Status: ",(width-210,15),cv2.FONT_HERSHEY_PLAIN,1.25,(0,255,0))
         cv2.putText(image_display, self.status,(width-130,15),cv2.FONT_HERSHEY_PLAIN,1.25,(self.color))
         cv2.putText(image_display,"ID: " + self.image_id,(width-230,30),cv2.FONT_HERSHEY_PLAIN,1,(197,155,19))
-        cv2.rectangle(image_display,(0,0),(180,15),(0,0,0),-1)
-        cv2.putText(image_display, "Image number: " + str(self.image_number),(5,12),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
+        cv2.rectangle(image_display,(0,0),(230,15),(0,0,0),-1)
+        cv2.putText(image_display, "Image number: " + str(self.image_number) + "/" + str(len(self.file_list)-1),(5,12),cv2.FONT_HERSHEY_PLAIN,1,(0,255,0))
         cv2.line(image_display,((width/2)-10,height/2),((width/2)+10,height/2),self.color)
         cv2.line(image_display,(width/2,(height/2)+10),(width/2,(height/2)-10),self.color)
 
@@ -131,12 +162,10 @@ class SniperGeoLocator(object):
 
         if key == 32 and len(self.file_list) > self.image_number + 1:   # spacebar
             self.image_number += 1
-            self.update_file_list()
         elif key == 98 and self.image_number > 0: # 'B' key for 'back'
             self.image_number -= 1
         elif key == 32 and len(self.file_list) == self.image_number + 1:
             print "End of file list reached"
-            self.update_file_list()
         else:
             pass
 
@@ -165,16 +194,27 @@ class SniperGeoLocator(object):
             pass
 
 
-
     def chapter_13_geolocation(self,x,y):
+        # get the undistorted pixel coordinate
+        src = np.array([[[x, y]]], dtype = np.float64)  #src is input pixel coordinates
+        undistortedProjection = cv2.undistortPoints(src,self.cameraMatrix,self.distCoeff)
+
+        # multiply the projection by the focal length and then add the offset to convert back to pixels
+        undistortedPixel_x = undistortedProjection[0][0][0]*self.fx + self.cx
+        undistortedPixel_y = undistortedProjection[0][0][1]*self.fy + self.cy
+
+        # the new undistorted pixel values
+        x_new = undistortedPixel_x
+        y_new = undistortedPixel_y
+
         # geolocate the object (target) using technique from UAV book chapter 13
+
+        # capture pixel coordinates
+        px = x_new;
+        py = y_new;
 
         # position of the UAV
         p_uav = np.array([[self.pn],[self.pe],[self.pd]])
-
-        #capture pixel coordinates
-        px = x;
-        py = y;
 
         # convert to pixel locations measured from image center (0,0)
         eps_x = px - self.img_width/2.0
@@ -217,13 +257,15 @@ class SniperGeoLocator(object):
         big_term_h = R_b_i.dot(R_g_b.dot(R_c_g.dot(el_hat_c_h)))
         den_h = np.dot(k_i.T,big_term_h)
 
-        # calculate the location of the target
+        # calculate the location of the target in NED
         p_obj_w = p_uav + h*big_term_w/den_w                        #EQ 13.18
         p_obj_h = p_uav + h*big_term_h/den_h
         p_obj = [float(p_obj_h[0]),float(p_obj_w[1]),float(p_obj_w[2])]
 
+        print "Target " + str(self.target_number) + " image and location captured"
         print p_obj
-        print eps_x, eps_y
+        # print eps_x, eps_y
+        # print "\n"
 
         # write the image to file
         self.write_image_to_file()
@@ -260,11 +302,15 @@ class SniperGeoLocator(object):
 
 
     def write_location_to_file(self, location):
+        # convert location from NED to lat lon
+        lat = self.home[0] + math.degrees(math.asin(location[0]/self.R_earth))
+        lon = self.home[1] + math.degrees(math.asin(location[1]/(math.cos(math.radians(self.home[0]))*self.R_earth)))
+
         filename = "target_" + str(self.target_number) + "_locations.txt"
         f = open(self.txt_directory + filename, 'a')
         try:
             f.write(self.image_id + "," + str(self.target_number) + "," +
-                    str(location[0]) + "," + str(location[1]) + "," + str(math.degrees(self.psi)))
+                    str(lat) + "," + str(lon) + "," + str(math.degrees(self.psi)))
             f.write("\n")
         finally:
             f.close()
@@ -274,6 +320,8 @@ class SniperGeoLocator(object):
         self.home[0] = gps_init_array.data[0]
         self.home[1] = gps_init_array.data[1]
         self.home[2] = gps_init_array.data[2]
+
+        self.got_gps_init = True
 
         print "Home location received"
         print "Home Lat: " + str(self.home[0])

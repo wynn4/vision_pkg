@@ -12,7 +12,6 @@
 
 import rospy
 from sniper_cam.msg import stateImage
-from fcu_common.msg import State
 from std_msgs.msg import Float64
 from cv_bridge import CvBridge, CvBridgeError
 import cv2

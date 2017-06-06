@@ -9,7 +9,7 @@
 
 import rospy
 from sensor_msgs.msg import Image
-from fcu_common.msg import State
+from rosflight_msgs.msg import State
 from sniper_cam.msg import stateImage
 import cv2
 import math
