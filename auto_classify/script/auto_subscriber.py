@@ -95,7 +95,8 @@ class AutoSubscriber(object):
                     os.makedirs('colors/'+self.colors[ch_idx])
                 r_img = np.array(ret.return_img)
                 r_img = r_img.reshape([24,24,3])               
-                imsave('./colors/' + self.colors[ch_idx]+'/'+str(i)+'.png', r_img)
+                imsave('./colors/' + self.colors[ch_idx]+'/'+str(self.total)+'.png', r_img)
+                cv2.imwrite('./feed_images_4/'+str(self.total) + '.png', cv2.resize(image, (224,224)))
             else:
                 place = 0
                 #print('denied: ' + str(i))
@@ -172,6 +173,7 @@ def main():
 
     #create instance of class that subscribes to the stamped_image
     subscriber = AutoSubscriber()
+
     #spin
     try:
         rospy.spin()
@@ -183,3 +185,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
