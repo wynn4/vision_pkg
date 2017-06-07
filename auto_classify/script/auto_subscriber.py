@@ -42,7 +42,6 @@ class AutoSubscriber(object):
 
 	# initialize geo-locator
 	self.geo = auto_geo_locator.SniperGeoLocator()
-	
 
         # initialize message
         self.msg = interopImages()
@@ -86,26 +85,18 @@ class AutoSubscriber(object):
         # pull off the image portion of the message
         self.image_save = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
         h,w,c= self.image_save.shape
-	
-        one =  self.image_save[0:h//3, 0:w//4]
-        two = self.image_save[0:h//3, w//4:2*w//4]
-        three = self.image_save[0:h//3, 2*w//4:3*w//4]
-        four = self.image_save[0:h//3, 3*w//4:w]
-        five = self.image_save[h//3:2*h//3, 0:w//4]
-        six = self.image_save[h//3:2*h//3, w//4:2*w//4]
-        seven = self.image_save[h//3:2*h//3, 2*w//4:3*w//4]
-        eight = self.image_save[h//3:2*h//3, 3*w//4:w]
-        nine = self.image_save[2*h//3:h, 0:w//4]
-        ten = self.image_save[2*h//3:h, w//4:2*w//4]
-        eleven = self.image_save[2*h//3:h, 2*w//4:3*w//4]
-        twelve = self.image_save[2*h//3:h, 3*w//4:w]
-
-        all_imgs = [one,two,three,four,five,six,seven,eight,nine,ten,eleven,twelve]
-
+        rows = 3
+        cols = 4
+        all_imgs = []
+        pixel = []
+        for i in range(rows):
+            for j in range(cols):
+                all_imgs.append(self.image_save[i*h//rows:(i+1)*h//rows, j*w//cols:(j+1)*w//cols])
+                pixel.append([j*w//cols + w//cols//2, i*h//rows + h//rows//2]) 
+        
         # Resize images to fit into network and then get results
         for i,image in enumerate(all_imgs):
             #cv2.imwrite(str(i+1)+'.png' ,cv2.resize(image, (224,224)))
-            #print i
             temp_image = self.bridge.cv2_to_imgmsg(cv2.resize(image, (224,224)), "bgr8")
             ret = self.softmax_client(temp_image,False,-1,-1,-1,-1)
             ch_idx = np.argmax(ret.sc)
@@ -114,9 +105,11 @@ class AutoSubscriber(object):
                 print('accepted: ' + str(self.total))
                 self.color_dirs[self.colors[ch_idx]]['orig_img'].append(temp_image)
                 self.color_dirs[self.colors[ch_idx]]['all_ret'].append(ret)
-                self.color_dirs[self.colors[ch_idx]]['geo_data'].append(self.geo.chapter_13_geolocation(image.shape[1],image.shape[0]))
-                print self.geo.chapter_13_geolocation(image.shape[1],image.shape[0])
-		#if not os.path.exists('colors/'+ self.colors[ch_idx]):
+                
+
+                self.color_dirs[self.colors[ch_idx]]['geo_data'].append(self.geo.chapter_13_geolocation(pixel[i][0],pixel[i][1]))
+		
+                #if not os.path.exists('colors/'+ self.colors[ch_idx]):
                 #    os.makedirs('colors/'+self.colors[ch_idx])
                 #r_img = np.array(ret.return_img)
                 #r_img = r_img.reshape([24,24,3])               
