@@ -20,6 +20,8 @@ from scipy.misc import imsave, imshow
 from PIL import Image
 from auto_classify.srv import *
 from sniper_cam.msg import stateImage
+from sniper_cam.msg import interopImages
+from auto_classify.msg import autoEnding
 
 #import batch_utils
 #import get_dir_images
@@ -28,10 +30,16 @@ class AutoSubscriber(object):
 
     def __init__(self):
         # setup state_image subscriber
-        self.auto_image_subscriber = rospy.Subscriber('state_image', stateImage, self.auto_image_callback, queue_size=10)
+        self.auto_image_subscriber = rospy.Subscriber('state_image', stateImage, self.auto_image_callback, queue_size=100)
 
         # setup landing subscriber
-        #self.auto_landing_subscriber = rospy.Subscriber('asdfasdf', landing_something, self.final_results_callback, queue_size=10)
+        self.auto_ending_subscriber = rospy.Subscriber('auto_ending', autoEnding, self.final_results_callback, queue_size=10)
+
+        # setup interopt publisher
+        self.pub = rospy.Publisher('plans', interopImages, queue_size = 10)
+
+        # initialize message
+        self.msg = interopImages()
 
         # initialize counter
         self.total = 0
@@ -71,18 +79,25 @@ class AutoSubscriber(object):
         # pull off the image portion of the message
         self.image_save = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
         h,w,c= self.image_save.shape
-        one =  self.image_save[0:h//2, 0:w//3]
-        two = self.image_save[0:h//2, w//3:2*w//3]
-        three = self.image_save[0:h//2, 2*w//3:w]
-        four = self.image_save[h//2:h, 0:w//3]
-        five = self.image_save[h//2:h, w//3:2*w//3]
-        six = self.image_save[h//2:h, 2*w//3:w]
+        one =  self.image_save[0:h//3, 0:w//4]
+        two = self.image_save[0:h//3, w//4:2*w//4]
+        three = self.image_save[0:h//3, 2*w//4:3*w//4]
+        four = self.image_save[0:h//3, 3*w//4:w]
+        five = self.image_save[h//3:2*h//3, 0:w//4]
+        six = self.image_save[h//3:2*h//3, w//4:2*w//4]
+        seven = self.image_save[h//3:2*h//3, 2*w//4:3*w//4]
+        eight = self.image_save[h//3:2*h//3, 3*w//4:w]
+        nine = self.image_save[2*h//3:h, 0:w//4]
+        ten = self.image_save[2*h//3:h, w//4:2*w//4]
+        eleven = self.image_save[2*h//3:h, 2*w//4:3*w//4]
+        twelve = self.image_save[2*h//3:h, 3*w//4:w]
 
-        all_imgs = [one,two,three,four,five,six]
+        all_imgs = [one,two,three,four,five,six,seven,eight,nine,ten,eleven,twelve]
 
         # Resize images to fit into network and then get results
-        for i,image in enumerate(all_imgs):
+        for image in all_imgs:
             #cv2.imwrite(str(i+1)+'.png' ,cv2.resize(image, (224,224)))
+            #print i
             temp_image = self.bridge.cv2_to_imgmsg(cv2.resize(image, (224,224)), "bgr8")
             ret = self.softmax_client(temp_image,False,-1,-1,-1,-1)
             ch_idx = np.argmax(ret.sc)
@@ -91,12 +106,12 @@ class AutoSubscriber(object):
                 print('accepted: ' + str(self.total))
                 self.color_dirs[self.colors[ch_idx]]['orig_img'].append(temp_image)
                 self.color_dirs[self.colors[ch_idx]]['all_ret'].append(ret)
-                if not os.path.exists('colors/'+ self.colors[ch_idx]):
-                    os.makedirs('colors/'+self.colors[ch_idx])
-                r_img = np.array(ret.return_img)
-                r_img = r_img.reshape([24,24,3])               
-                imsave('./colors/' + self.colors[ch_idx]+'/'+str(self.total)+'.png', r_img)
-                cv2.imwrite('./feed_images_4/'+str(self.total) + '.png', cv2.resize(image, (224,224)))
+                #if not os.path.exists('colors/'+ self.colors[ch_idx]):
+                #    os.makedirs('colors/'+self.colors[ch_idx])
+                #r_img = np.array(ret.return_img)
+                #r_img = r_img.reshape([24,24,3])               
+                #imsave('./colors/' + self.colors[ch_idx]+'/'+str(self.total)+'.png', r_img)
+                #cv2.imwrite('./feed_images_4/'+str(self.total) + '.png', cv2.resize(image, (224,224)))
             else:
                 place = 0
                 #print('denied: ' + str(i))
@@ -164,7 +179,18 @@ class AutoSubscriber(object):
             r_img = np.array(all_ret[w_sc_idx].return_img)
             r_img = r_img.reshape([24,24,3])
             imsave('./' + 'colors_winners/'+color+'/'+str(i)+'.png', r_img)
-
+            self.msg.image = all_ret[w_sc_idx].return_img
+            self.msg.type = "standard"
+            self.msg.gps_lati = 0 # TODO
+            self.msg.gps_longit = 0 # TODO  
+            self.msg.target_color = self.colors[best_sc]
+            self.msg.target_shape = self.shapes[np.argmax(all_ret[w_sc_idx].s)]
+            self.msg.symbol = self.alpha[np.argmax(all_ret[w_sc_idx].l)]
+            self.msg.symbol_color = self.colors[np.argmax(all_ret[w_sc_idx].lc)]
+            self.msg.orientation = 0 # TODO
+            self.msg.description = "" # TODO ?
+            self.msg.autonomous = True
+            self.pub.publish(self.msg)
 
 
 def main():
@@ -181,7 +207,7 @@ def main():
         print("Shutting down")
     #OpenCV cleanup
     cv2.destroyAllWindows()
-    subscriber.final_results_callback(2)
+    #subscriber.final_results_callback(2)
 
 if __name__ == '__main__':
     main()
