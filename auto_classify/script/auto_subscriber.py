@@ -23,6 +23,8 @@ from sniper_cam.msg import stateImage
 from sniper_cam.msg import interopImages
 from auto_classify.msg import autoEnding
 
+import auto_geo_locator
+
 #import batch_utils
 #import get_dir_images
 
@@ -37,6 +39,10 @@ class AutoSubscriber(object):
 
         # setup interopt publisher
         self.pub = rospy.Publisher('plans', interopImages, queue_size = 10)
+
+	# initialize geo-locator
+	self.geo = auto_geo_locator.SniperGeoLocator()
+	
 
         # initialize message
         self.msg = interopImages()
@@ -62,6 +68,7 @@ class AutoSubscriber(object):
             self.color_dirs[c] = {}
             self.color_dirs[c]['all_ret'] = []
             self.color_dirs[c]['orig_img'] = []
+            self.color_dirs[c]['geo_data'] = []
 
         # create a CvBridge object
         self.bridge = CvBridge()
@@ -79,6 +86,7 @@ class AutoSubscriber(object):
         # pull off the image portion of the message
         self.image_save = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
         h,w,c= self.image_save.shape
+	
         one =  self.image_save[0:h//3, 0:w//4]
         two = self.image_save[0:h//3, w//4:2*w//4]
         three = self.image_save[0:h//3, 2*w//4:3*w//4]
@@ -95,7 +103,7 @@ class AutoSubscriber(object):
         all_imgs = [one,two,three,four,five,six,seven,eight,nine,ten,eleven,twelve]
 
         # Resize images to fit into network and then get results
-        for image in all_imgs:
+        for i,image in enumerate(all_imgs):
             #cv2.imwrite(str(i+1)+'.png' ,cv2.resize(image, (224,224)))
             #print i
             temp_image = self.bridge.cv2_to_imgmsg(cv2.resize(image, (224,224)), "bgr8")
@@ -106,7 +114,9 @@ class AutoSubscriber(object):
                 print('accepted: ' + str(self.total))
                 self.color_dirs[self.colors[ch_idx]]['orig_img'].append(temp_image)
                 self.color_dirs[self.colors[ch_idx]]['all_ret'].append(ret)
-                #if not os.path.exists('colors/'+ self.colors[ch_idx]):
+                self.color_dirs[self.colors[ch_idx]]['geo_data'].append(self.geo.chapter_13_geolocation(image.shape[1],image.shape[0]))
+                print self.geo.chapter_13_geolocation(image.shape[1],image.shape[0])
+		#if not os.path.exists('colors/'+ self.colors[ch_idx]):
                 #    os.makedirs('colors/'+self.colors[ch_idx])
                 #r_img = np.array(ret.return_img)
                 #r_img = r_img.reshape([24,24,3])               
@@ -181,8 +191,8 @@ class AutoSubscriber(object):
             imsave('./' + 'colors_winners/'+color+'/'+str(i)+'.png', r_img)
             self.msg.image = all_ret[w_sc_idx].return_img
             self.msg.type = "standard"
-            self.msg.gps_lati = 0 # TODO
-            self.msg.gps_longit = 0 # TODO  
+            self.msg.gps_lati = self.color_dirs[color]['geo_data'][w_sc_idx][0] # TODO
+            self.msg.gps_longit = self.color_dirs[color]['geo_data'][w_sc_idx][0] # TODO  
             self.msg.target_color = self.colors[best_sc]
             self.msg.target_shape = self.shapes[np.argmax(all_ret[w_sc_idx].s)]
             self.msg.symbol = self.alpha[np.argmax(all_ret[w_sc_idx].l)]
