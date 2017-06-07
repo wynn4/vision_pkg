@@ -92,7 +92,18 @@ class SniperGeoLocator(object):
         self.got_gps_init = False
 
 
-    def chapter_13_geolocation(self,x,y):
+    def chapter_13_geolocation(self,x,y,msg):
+        self.pn = msg.pn
+        self.pe = msg.pe
+        self.pd = msg.pd
+
+        self.phi = msg.phi
+        self.theta = msg.theta
+        self.psi = msg.chi % (2*math.pi) 
+
+        self.alpha_az = msg.azimuth
+        self.alpha_el = msg.elevation
+
         # get the undistorted pixel coordinate
         src = np.array([[[x, y]]], dtype = np.float64)  #src is input pixel coordinates
         undistortedProjection = cv2.undistortPoints(src,self.cameraMatrix,self.distCoeff)

@@ -107,8 +107,8 @@ class AutoSubscriber(object):
                 self.color_dirs[self.colors[ch_idx]]['all_ret'].append(ret)
                 
 
-                self.color_dirs[self.colors[ch_idx]]['geo_data'].append(self.geo.chapter_13_geolocation(pixel[i][0],pixel[i][1]))
-		
+                self.color_dirs[self.colors[ch_idx]]['geo_data'].append(self.geo.chapter_13_geolocation(pixel[i][0],pixel[i][1],msg))
+	        #print self.geo.chapter_13_geolocation(pixel[i][0],pixel[i][1],msg)	
                 #if not os.path.exists('colors/'+ self.colors[ch_idx]):
                 #    os.makedirs('colors/'+self.colors[ch_idx])
                 #r_img = np.array(ret.return_img)
