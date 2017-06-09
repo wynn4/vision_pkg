@@ -29,12 +29,12 @@ class Application(Frame):
             self.imageMessage = self.croppedImage
         else:
             self.imageMessage = self.image
-	"""
+
         try:
             image_msg = self.bridge.cv2_to_imgmsg(np.array(self.imageMessage), "rgb8")
         except CvBridgeError as e:
             print(e)
-	"""
+	
         #file = 'characteristics_target_{}.txt'.format(self.targetDir[-1])
         #writeFile = open(file, 'wb')
         orientation = self.vals[2] - self.rotateValue.get()
@@ -51,6 +51,7 @@ class Application(Frame):
         self.msg.symbol_color = self.lColorContent.get()
         self.msg.orientation = int(orientation)
         self.msg.description = self.descriptionContent.get()
+	self.msg.autonomous = False
         self.pub.publish(self.msg)
 
 
