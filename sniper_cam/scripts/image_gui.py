@@ -51,7 +51,7 @@ class Application(Frame):
         self.msg.symbol_color = self.lColorContent.get()
         self.msg.orientation = int(orientation)
         self.msg.description = self.descriptionContent.get()
-	self.msg.autonomous = False
+        self.msg.autonomous = False
         self.pub.publish(self.msg)
 
 

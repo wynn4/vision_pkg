@@ -9,7 +9,7 @@
 
 import rospy
 from sensor_msgs.msg import Image
-from fcu_common.msg import State
+from rosflight_msgs.msg import State
 from sniper_cam.msg import stateImage
 import cv2
 import math
@@ -39,8 +39,8 @@ class ImageStamper(object):
         self.chi = 0.0
 
         # static gimbal
-        self.alpha_az = math.radians(90)
-        self.alpha_el = math.radians(-45)
+        self.alpha_az = math.radians(0)
+        self.alpha_el = math.radians(-90)
 
         # initialize counter
         self.counter = 0
