@@ -40,7 +40,7 @@ class Application(Frame):
         orientation = self.vals[2] - self.rotateValue.get()
         while(orientation < 0):
             orientation += 360
-
+	
         self.msg.image = image_msg
         self.msg.type = self.typeContent.get()
         self.msg.gps_lati = float(self.vals[0])
@@ -53,9 +53,7 @@ class Application(Frame):
         self.msg.description = self.descriptionContent.get()
         self.msg.autonomous = False
         self.pub.publish(self.msg)
-
-
-        '''
+	'''
         writeFile.write('{}\n,{}\n,{}\n,{}\n,{}\n,{}\n,{}\n,{}'.format(self.typeContent.get(), self.vals[0], self.vals[1],
                                                                 orientation, self.tShapeContent.get(), self.letterContent.get(),
                                                                 self.tColorContent.get(), self.lColorContent.get()))
@@ -327,14 +325,17 @@ class Application(Frame):
 	if self.rotateImage:
 	    self.rotateImage=None
 
-	
-
-
     def loadFiles(self, event=None):
         self.resetObjects()
 
         try:
             files = os.listdir(self.targetDir)
+	    print(files)
+	    files = [os.path.join(self.targetDir, f) for f in files]
+	    print(files)
+	    files.sort(key=lambda x: os.path.getmtime(x))
+	    print(files)
+	    files = [f[f.rfind('/'):] for f in files]
         except OSError:
             return
         self.cropButton.configure(state=DISABLED)
@@ -465,14 +466,14 @@ class Application(Frame):
         self.croppedImage = None
         self.rotateJob = None
         self.imageType = ''
-	self.originalImage =None																																								
+	self.originalImage = None
 
         self.pub = rospy.Publisher('plans', interopImages, queue_size =  10)
         self.bridge = CvBridge()
         self.msg = interopImages()
 
         rospy.init_node('death_star', anonymous=True)
-
+	
         # create the frame
         Frame.__init__(self, master)
         # pack it up
