@@ -34,13 +34,13 @@ class Application(Frame):
             image_msg = self.bridge.cv2_to_imgmsg(np.array(self.imageMessage), "rgb8")
         except CvBridgeError as e:
             print(e)
-
-        file = 'characteristics_target_{}.txt'.format(self.targetDir[-1])
-        writeFile = open(file, 'wb')
+	
+        #file = 'characteristics_target_{}.txt'.format(self.targetDir[-1])
+        #writeFile = open(file, 'wb')
         orientation = self.vals[2] - self.rotateValue.get()
         while(orientation < 0):
             orientation += 360
-
+	
         self.msg.image = image_msg
         self.msg.type = self.typeContent.get()
         self.msg.gps_lati = float(self.vals[0])
@@ -53,21 +53,22 @@ class Application(Frame):
         self.msg.description = self.descriptionContent.get()
         self.msg.autonomous = False
         self.pub.publish(self.msg)
-
-        '''
+	'''
         writeFile.write('{}\n,{}\n,{}\n,{}\n,{}\n,{}\n,{}\n,{}'.format(self.typeContent.get(), self.vals[0], self.vals[1],
                                                                 orientation, self.tShapeContent.get(), self.letterContent.get(),
                                                                 self.tColorContent.get(), self.lColorContent.get()))
         '''
         self.letterContent.set("")
         self.rotateValue.set(0)
+	self.refValue=0
         self.master.after_cancel(self.rotateJob)
+	self.rotateImage=None
         self.rotateJob=None
         self.image_tk=None
 
     def sampleRotate(self):
         width, height = self.image.size
-        expand = False if height > 650 else True
+        expand = True
         if self.rotateValue.get() != self.refValue:
             self.refValue = self.rotateValue.get()
             if self.croppedImage:
@@ -97,6 +98,9 @@ class Application(Frame):
     def on_move_press(self, event):
         self.curX, self.curY = (event.x, event.y)
         # expand rectangle as you drag the mouse
+	x_dist = abs(self.start_x - self.curX)
+	y_dist = x_dist * 3 / 4
+	self.curY = self.start_y + y_dist if self.curY > self.start_y else self.start_y - y_dist
         self.canvas.coords(self.rect, self.start_x, self.start_y, self.curX, self.curY)
 
     def on_button_release(self, event):
@@ -129,14 +133,14 @@ class Application(Frame):
                 self.toBeCropped = self.image
 
         if self.image:
-           # print(self.toBeCropped.size)
+            #print(self.toBeCropped.size)
             #print('{0} {1}'.format(offsetX, offsetY))
             if self.imageType == 'Standard':
                 self.croppedImage = self.toBeCropped.crop((int((self.start_x-offsetX)*self.w_mult), int((self.start_y-offsetY)*self.h_mult),
                                     int((self.curX-offsetX)*self.w_mult), int((self.curY-offsetY)*self.h_mult)))
             else:
                 self.croppedImage = self.toBeCropped.crop((self.start_x-offsetX, self.start_y-offsetY,self.curX-offsetX, self.curY-offsetY))
-            self.croppedImage = self.croppedImage.resize((450,450))
+            self.croppedImage = self.croppedImage.resize((1288,964), Im.BICUBIC)
             #print('{0} {1} {2} {3}'.format(self.start_x, self.start_y, self.curX, self.curY))
             self.image_tk = ImageTk.PhotoImage(self.croppedImage)
             # create the label with the embedded image
@@ -240,7 +244,7 @@ class Application(Frame):
 
 
     def loadImage(self, event):
-        if self.red_rect:
+	if self.red_rect:
             self.canvas.delete(self.red_rect)
 
         filename='{}/{}'.format(self.targetDir,self.images[int(self.red_pos[0]*self.columns+self.red_pos[1])])
@@ -254,9 +258,8 @@ class Application(Frame):
         self.master.unbind("<Left>")
         self.master.unbind("<Right>")
 
-        self.rotateJob = self.after(1000, self.sampleRotate)
+        
         self.savedImages=[]
-        self.canvas.delete(self.red_rect)
         self.submit.configure(state=NORMAL)
         self.cropButton.configure(state=NORMAL)
         self.undo.configure(state=NORMAL)
@@ -271,15 +274,16 @@ class Application(Frame):
         self.image = Im.open(filename)
         self.originalImage = self.image
         width, height = self.image.size
-        self.w_mult = float(width) / 450
-        self.h_mult = float(height) / 450
+        self.w_mult = float(width) / 1288
+        self.h_mult = float(height) / 964
         # resizes the image so that all are the same size
-        self.image = self.image.resize((450, 450), Im.ANTIALIAS)
+        self.image = self.image.resize((1288, 964), Im.BICUBIC)
         # converts the PIL image to a tk image
         self.image_tk = ImageTk.PhotoImage(self.image)
         # create the label with the embedded image
         self.canvas.create_image(self.master.winfo_screenwidth()/2,(self.master.winfo_screenheight()-200)/2,anchor=CENTER, image=self.image_tk)
         self.imageType = 'Standard'
+	self.rotateJob = self.after(1000, self.sampleRotate)
         self.averagePositionVals()
 
     def browseDirectory(self):
@@ -307,18 +311,31 @@ class Application(Frame):
         self.vals = list(map(lambda x: x / count, self.vals))
         self.vals.append(orientation)
 
-
-    def loadFiles(self, event=None):
-        if self.rotateJob:
+    def resetObjects(self):
+	if self.rotateJob:
             self.master.after_cancel(self.rotateJob)
             self.rotateJob=None
         self.rotateValue.set(0)
-
+	self.refValue=0
+	if self.croppedImage:
+	    self.croppedImage=None
         if self.image:
             self.image_tk=None
             self.image=None
+	if self.rotateImage:
+	    self.rotateImage=None
+
+    def loadFiles(self, event=None):
+        self.resetObjects()
+
         try:
             files = os.listdir(self.targetDir)
+	    print(files)
+	    files = [os.path.join(self.targetDir, f) for f in files]
+	    print(files)
+	    files.sort(key=lambda x: os.path.getmtime(x))
+	    print(files)
+	    files = [f[f.rfind('/'):] for f in files]
         except OSError:
             return
         self.cropButton.configure(state=DISABLED)
@@ -449,13 +466,14 @@ class Application(Frame):
         self.croppedImage = None
         self.rotateJob = None
         self.imageType = ''
+	self.originalImage = None
 
         self.pub = rospy.Publisher('plans', interopImages, queue_size =  10)
         self.bridge = CvBridge()
         self.msg = interopImages()
 
         rospy.init_node('death_star', anonymous=True)
-
+	
         # create the frame
         Frame.__init__(self, master)
         # pack it up
