@@ -23,20 +23,26 @@ from cv_bridge import CvBridge, CvBridgeError
 class Application(Frame):
 
     def submitInfo(self):
+	'''
         if self.imageType == 'Rotated':
             self.imageMessage = self.rotateImage
         elif self.imageType == 'Cropped':
             self.imageMessage = self.croppedImage
         else:
             self.imageMessage = self.image
+	'''
+	width, height = self.finalImage.size
+	if self.finalCrop:
+	    self.finalImage = self.finalImage.rotate(self.refValue, resample=Im.BICUBIC, expand=True)
+	if width < 100:
+	    self.finalImage = self.finalImage.resize((100,75),Im.BICUBIC)
 
         try:
-            image_msg = self.bridge.cv2_to_imgmsg(np.array(self.imageMessage), "rgb8")
+            image_msg = self.bridge.cv2_to_imgmsg(np.array(self.finalImage), "rgb8")
         except CvBridgeError as e:
             print(e)
 	
-        #file = 'characteristics_target_{}.txt'.format(self.targetDir[-1])
-        #writeFile = open(file, 'wb')
+        
         orientation = self.vals[2] - self.rotateValue.get()
         while(orientation < 0):
             orientation += 360
@@ -53,6 +59,9 @@ class Application(Frame):
         self.msg.description = self.descriptionContent.get()
         self.msg.autonomous = False
         self.pub.publish(self.msg)
+	
+	files = 'imageF.jpg'
+	self.finalImage.save(files)
 	'''
         writeFile.write('{}\n,{}\n,{}\n,{}\n,{}\n,{}\n,{}\n,{}'.format(self.typeContent.get(), self.vals[0], self.vals[1],
                                                                 orientation, self.tShapeContent.get(), self.letterContent.get(),
@@ -62,6 +71,7 @@ class Application(Frame):
         self.rotateValue.set(0)
 	self.refValue=0
         self.master.after_cancel(self.rotateJob)
+	self.finalImage=None
 	self.rotateImage=None
         self.rotateJob=None
         self.image_tk=None
@@ -114,7 +124,7 @@ class Application(Frame):
     def cropImage(self):
         if not self.rect:
             return
-
+	self.finalCrop = True
         width, height = self.image.size
         offsetX = (self.master.winfo_screenwidth()/2) - (width / 2)
         offsetY = ((self.master.winfo_screenheight()-200)/2) - (height / 2)
@@ -124,6 +134,7 @@ class Application(Frame):
             self.toBeCropped = self.croppedImage
 
         if self.imageType=='Rotated':
+	    self.finalCrop = False
             rWidth, rHeight = self.rotateImage.size
             if rWidth != width:
                 offsetX = offsetX - (rWidth - width) / 2
@@ -140,6 +151,7 @@ class Application(Frame):
                                     int((self.curX-offsetX)*self.w_mult), int((self.curY-offsetY)*self.h_mult)))
             else:
                 self.croppedImage = self.toBeCropped.crop((self.start_x-offsetX, self.start_y-offsetY,self.curX-offsetX, self.curY-offsetY))
+	    self.finalImage = self.croppedImage
             self.croppedImage = self.croppedImage.resize((1288,964), Im.BICUBIC)
             #print('{0} {1} {2} {3}'.format(self.start_x, self.start_y, self.curX, self.curY))
             self.image_tk = ImageTk.PhotoImage(self.croppedImage)
@@ -147,6 +159,11 @@ class Application(Frame):
             self.canvas.create_image(self.master.winfo_screenwidth()/2,(self.master.winfo_screenheight()-200)/2,anchor=CENTER, image=self.image_tk)
             self.imageType = 'Cropped'
             self.canvas.delete(self.rect)
+	files = "temp.jpg"
+	width, height = self.finalImage.size
+	if width < 100:
+	    self.finalImage = self.finalImage.resize((100,75),Im.BICUBIC)
+	self.finalImage.save(files)
 
     def undoCrop(self):
         if self.croppedImage:
@@ -273,6 +290,7 @@ class Application(Frame):
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
         self.image = Im.open(filename)
         self.originalImage = self.image
+	self.finalImage = self.image
         width, height = self.image.size
         self.w_mult = float(width) / 1288
         self.h_mult = float(height) / 964
@@ -324,17 +342,16 @@ class Application(Frame):
             self.image=None
 	if self.rotateImage:
 	    self.rotateImage=None
+	if self.finalImage:
+	    self.finalImage=None
 
     def loadFiles(self, event=None):
         self.resetObjects()
 
         try:
             files = os.listdir(self.targetDir)
-	    print(files)
 	    files = [os.path.join(self.targetDir, f) for f in files]
-	    print(files)
 	    files.sort(key=lambda x: os.path.getmtime(x))
-	    print(files)
 	    files = [f[f.rfind('/'):] for f in files]
         except OSError:
             return
@@ -467,7 +484,9 @@ class Application(Frame):
         self.rotateJob = None
         self.imageType = ''
 	self.originalImage = None
-
+	self.finalImage = None
+	self.finalCrop = False
+	
         self.pub = rospy.Publisher('plans', interopImages, queue_size =  10)
         self.bridge = CvBridge()
         self.msg = interopImages()
