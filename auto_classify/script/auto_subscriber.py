@@ -22,8 +22,10 @@ from auto_classify.srv import *
 from sniper_cam.msg import stateImage
 from sniper_cam.msg import interopImages
 from auto_classify.msg import autoEnding
+#from auto_classify.msg import autoSubmit
 
 import auto_geo_locator
+import copy, select
 
 #import batch_utils
 #import get_dir_images
@@ -34,9 +36,13 @@ class AutoSubscriber(object):
         # setup state_image subscriber
         self.auto_image_subscriber = rospy.Subscriber('state_image', stateImage, self.auto_image_callback, queue_size=100)
 
-        # setup landing subscriber
-        self.auto_ending_subscriber = rospy.Subscriber('auto_ending', autoEnding, self.final_results_callback, queue_size=10)
 
+        # setup ending subscriber
+        self.auto_ending_subscriber = rospy.Subscriber('auto_ending', autoEnding, self.final_results_callback, queue_size=10)
+        
+        # setup submitting subscriber
+        #self.auto_ending_subscriber = rospy.Subscriber('auto_submit', autoSubmit, self.submit, queue_size=10)
+        
         # setup interopt publisher
         self.pub = rospy.Publisher('plans', interopImages, queue_size = 10)
 
@@ -45,6 +51,7 @@ class AutoSubscriber(object):
 
         # initialize message
         self.msg = interopImages()
+        self.messages = []
 
         # initialize counter
         self.total = 0
@@ -93,14 +100,17 @@ class AutoSubscriber(object):
             for j in range(cols):
                 all_imgs.append(self.image_save[i*h//rows:(i+1)*h//rows, j*w//cols:(j+1)*w//cols])
                 pixel.append([j*w//cols + w//cols//2, i*h//rows + h//rows//2]) 
-        
+        '''for image in all_imgs:
+            print 'here'
+            cv2.imshow('img', image)
+            cv2.waitKey(1000)'''
         # Resize images to fit into network and then get results
         for i,image in enumerate(all_imgs):
             #cv2.imwrite(str(i+1)+'.png' ,cv2.resize(image, (224,224)))
             temp_image = self.bridge.cv2_to_imgmsg(cv2.resize(image, (224,224)), "bgr8")
             ret = self.softmax_client(temp_image,False,-1,-1,-1,-1)
             ch_idx = np.argmax(ret.sc)
-            if ret.sc[ch_idx] > .75:
+            if ret.sc[ch_idx] > .75 and ret.lc[ch_idx] > .10:
                 self.total = self.total + 1
                 print('accepted: ' + str(self.total))
                 self.color_dirs[self.colors[ch_idx]]['orig_img'].append(temp_image)
@@ -114,16 +124,25 @@ class AutoSubscriber(object):
                 #r_img = np.array(ret.return_img)
                 #r_img = r_img.reshape([24,24,3])               
                 #imsave('./colors/' + self.colors[ch_idx]+'/'+str(self.total)+'.png', r_img)
-                #cv2.imwrite('./feed_images_4/'+str(self.total) + '.png', cv2.resize(image, (224,224)))
+                cv2.imwrite('./feed_images_4/'+str(self.total) + '.png', cv2.resize(image, (224,224)))
             else:
                 place = 0
                 #print('denied: ' + str(i))
 
     def final_results_callback(self, msg):
+        self.auto_image_subscriber.unregister()
         for color in self.color_dirs:
 
             print('----------'+color+'--------------')
-
+            '''if color == "white":
+                print "Skipping"
+                continue
+            if color == "black":
+                print "Skipping"
+                continue
+            if color == "black":
+                print "Skipping"
+                continue'''
             all_ret = self.color_dirs[color]['all_ret']
             if len(all_ret) == 0:
                 print('Not Found')
@@ -193,8 +212,25 @@ class AutoSubscriber(object):
             self.msg.orientation = 0 # TODO
             self.msg.description = "" # TODO ?
             self.msg.autonomous = True
-            self.pub.publish(self.msg)
+            #self.pub.publish(self.msg)
+            temp = copy.copy(self.msg)
+            self.messages.append(temp)
+        
+        print "You have 60 seconds to decide to abort (Press any key and Enter)"
 
+        i, o, e = select.select( [sys.stdin], [], [], 60)
+
+        if(i):
+            print "---------Aborting---------"
+        else:
+            print "---------Submitting---------"
+            for message in self.messages:
+                self.pub.publish(message)
+                print message.target_color
+                print message.target_shape
+                print message.symbol_color
+                print message.symbol
+                print ""
 
 def main():
     #initialize the node

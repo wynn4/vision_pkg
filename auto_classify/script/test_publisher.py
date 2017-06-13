@@ -16,7 +16,7 @@ class TestPublisher():
     
     def create_and_send(self, one_file):
         temp = cv2.imread('./test_images/'+one_file)
-        self.msg.image = self.bridge.cv2_to_imgmsg(np.array(temp), "rgb8")
+        self.msg.image = self.bridge.cv2_to_imgmsg(np.array(temp), "bgr8")
         self.msg.pn = random.uniform(0.0, 1.0)
         self.msg.pe = random.uniform(0.0, 1.0)
         self.msg.pd = random.uniform(0.0, 1.0)
@@ -39,3 +39,7 @@ if __name__ == '__main__':
             rospy.sleep(1.)
     except rospy.ROSInterruptException:
         pass
+    rospy.sleep(1.)
+
+
+

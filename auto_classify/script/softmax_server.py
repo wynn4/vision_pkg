@@ -12,7 +12,6 @@ from cv_bridge import CvBridge
 from scipy.misc import imsave
 
 
-bridge = CvBridge()
 
 # placeholders
 xs = tf.placeholder(tf.float32, shape=[None, 224*224*3], name="images")
@@ -162,14 +161,16 @@ with tf.name_scope('Cost'):
         loss = cross_entropies #+ 0.1*tf.reduce_mean(tf.abs(tf.matrix_determinant(tf.reshape(r_conv,[-1,2,2])) - 1 ))
 
 saver = tf.train.Saver()
-saver.restore(sess, "script/tf_logs_2/whole_model.ckpt")
+saver.restore(sess, "script/tf_logs_3/whole_model.ckpt")
 print("Whole model restored")
 
 brdg = CvBridge()
 
 def handle_softmax(req):
     print "Returning Image"
-    cv_image = brdg.imgmsg_to_cv2(req.image, "rgb8")
+    cv_image = brdg.imgmsg_to_cv2(req.image, "bgr8")
+    #cv2.imshow('img', cv_image)
+    #cv2.waitKey(1000)
     img = np.asarray(cv_image)
     imgs = np.zeros([1,224*224*3])
     imgs[0,:] = img.reshape((1,224*224*3))
