@@ -41,12 +41,14 @@ class Application(Frame):
             image_msg = self.bridge.cv2_to_imgmsg(np.array(self.finalImage), "rgb8")
         except CvBridgeError as e:
             print(e)
-	
-        
-        orientation = self.vals[2] - self.rotateValue.get()
+
+        if len(self.vals) > 2:
+            orientation = self.vals[2] - self.rotateValue.get()
+        else:
+            orientation = 0
         while(orientation < 0):
             orientation += 360
-	
+
         self.msg.image = image_msg
         self.msg.type = self.typeContent.get()
         self.msg.gps_lati = float(self.vals[0])
@@ -59,7 +61,7 @@ class Application(Frame):
         self.msg.description = self.descriptionContent.get()
         self.msg.autonomous = False
         self.pub.publish(self.msg)
-	
+
 	files = 'imageF.jpg'
 	self.finalImage.save(files)
 	'''
@@ -275,7 +277,7 @@ class Application(Frame):
         self.master.unbind("<Left>")
         self.master.unbind("<Right>")
 
-        
+
         self.savedImages=[]
         self.submit.configure(state=NORMAL)
         self.cropButton.configure(state=NORMAL)
@@ -486,13 +488,13 @@ class Application(Frame):
 	self.originalImage = None
 	self.finalImage = None
 	self.finalCrop = False
-	
+
         self.pub = rospy.Publisher('plans', interopImages, queue_size =  10)
         self.bridge = CvBridge()
         self.msg = interopImages()
 
         rospy.init_node('death_star', anonymous=True)
-	
+
         # create the frame
         Frame.__init__(self, master)
         # pack it up
