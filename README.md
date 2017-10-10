@@ -12,7 +12,7 @@ This whole system begins by running `roslaunch sniper_cam onboard_camera.launch`
 * `ROS_HOSTNAME=Odroid's IP`
 * `ROS_MASTER_URI=Odriod's IP`
 
-Settings to ajust the white balance and color profiles is also in this launchfile.
+Settings to ajust the white balance and color profiles is also in this launchfile. This is the extent of the image processing running on the plane.
 
 ### Ground side
 To run the ground image detection software:
@@ -32,3 +32,15 @@ A GUI should open up showing an image count in the upper left hand corner increm
 * `sniper_geo_locator.py` reads images from the `all_images` folder. When you left click a spot on the image, it parses the state file and figures out the GPS location of the click point, copying the image to a `target_[number]` directory, and appends the located point to a file in `target_locations_sorted` directory.
 * You cycle to another target with a right mouse click. 
 
+## Image classification and localization
+All of this takes place on the ground. If this is done on a different computer (and it probably should be) than the one that runs the detection (see above), the `vision_files` folder should be network shared to this computer. The basic flow is as follows:
+* Run `rosrun sniper_cam image_gui.py`. This is a Tkinter application that lets you rotate, add characteristics to, and submit an image to the interopt client. 
+* It shows tiled all of the images selected for a certain target. Pick the best by double clicking. It should be surrounded by a red border and fill the screen. Click and drag a box around object and select crop. Add characteristics.
+* Click submit. This creates a message with all the data and the cropped, rotated image. This message is published on the `plans` (as in Death Star plans) topic. The [interopt client](https://github.com/BYU-AUVSI/interop_pkg) will read off this and send to the judge's interopt server.
+
+## Getting it all together
+There should be 4 computers running on the ground during a flight:
+1. The ground station running the [ground station package](https://github.com/BYU-AUVSI/GroundStation). 
+2. The [image detection](#image-detection).
+3. The [image detect and classification](#image-classification-and-localization).
+4. The [interopt client](https://github.com/BYU-AUVSI/interop_pkg).
